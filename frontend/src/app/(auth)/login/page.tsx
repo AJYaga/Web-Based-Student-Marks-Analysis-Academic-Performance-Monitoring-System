@@ -1,3 +1,6 @@
+"use client"
+
+import { useState } from "react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -12,20 +15,44 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter both email and password.")
+      return
+    }
+
+    if (!email.includes("@")) {
+      setError("Please enter a valid email address.")
+      return
+    }
+
+    setError("")
+
+    // Temporary until backend authentication is implemented.
+    console.log("Login submitted", { email })
+  }
+
   return (
     <Card className="glass-strong shadow-xl">
       <CardHeader className="text-center">
         <CardTitle className="text-xl">Welcome Back</CardTitle>
+
         <CardDescription className="text-sm sm:text-base">
           Sign in to continue to EduInsight
         </CardDescription>
       </CardHeader>
 
       <CardContent>
-        <form className="space-y-4">
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium">
-                Email
+              Email
             </Label>
 
             <Input
@@ -34,12 +61,16 @@ export default function LoginPage() {
               placeholder="teacher@example.com"
               autoComplete="email"
               className="h-11 text-base"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm font-medium">
+                Password
+              </Label>
 
               <Link
                 href="/forgot-password"
@@ -50,11 +81,13 @@ export default function LoginPage() {
             </div>
 
             <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              className="h-11 text-base"
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                className="h-11 text-base"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
             />
           </div>
 
@@ -65,15 +98,24 @@ export default function LoginPage() {
               className="size-4 rounded border-border accent-primary"
             />
 
-            <Label
-              htmlFor="remember"
-              className="text-sm font-normal"
-            >
+            <Label htmlFor="remember" className="text-sm font-normal">
               Remember me
             </Label>
           </div>
 
-          <Button className="h-11 w-full text-base font-medium" type="submit">
+          {error && (
+            <div
+              role="alert"
+              className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {error}
+            </div>
+          )}
+
+          <Button
+            className="h-11 w-full text-base font-medium"
+            type="submit"
+          >
             Sign In
           </Button>
 

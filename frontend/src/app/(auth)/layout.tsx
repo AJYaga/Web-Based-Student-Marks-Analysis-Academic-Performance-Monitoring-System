@@ -9,8 +9,8 @@ export default function AuthLayout({
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
       <div className="absolute inset-0 -z-10">
-        <div className="absolute left-[-120px] top-[-100px] size-[360px] rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute bottom-[-120px] right-[-100px] size-[360px] rounded-full bg-secondary/30 blur-3xl" />
+        <div className="absolute -left-30 -top-25 size-90 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute -bottom-30 -right-25 size-90 rounded-full bg-secondary/30 blur-3xl" />
       </div>
 
       <div className="absolute right-5 top-5">
