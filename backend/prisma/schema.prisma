@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum SubjectStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum ExaminationStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum MarkStatus {
+  DRAFT
+  FINAL
+}
+
+model Teacher {
+  id           String @id @default(cuid())
+  name         String
+  email        String @unique
+  passwordHash String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classes      Class[]
+  subjects     Subject[]
+  examinations Examination[]
+}
+
+model Class {
+  id           String @id @default(cuid())
+  name         String
+  level        String
+  academicYear Int
+
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id])
+
+  students      Student[]
+  classSubjects ClassSubject[]
+  examinations  Examination[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([teacherId, name, academicYear])
+  @@index([teacherId])
+}
+
+model Student {
+  id             String        @id @default(cuid())
+  registrationNo String
+  name           String
+  status         StudentStatus @default(ACTIVE)
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  marks Mark[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([classId, registrationNo])
+  @@index([classId])
+}
+
+model Subject {
+  id      String @id @default(cuid())
+  code    String
+  name    String
+  maxMark Int    @default(100)
+
+  status SubjectStatus @default(ACTIVE)
+
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id])
+
+  classSubjects       ClassSubject[]
+  examinationSubjects ExaminationSubject[]
+  marks               Mark[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([teacherId, code])
+  @@index([teacherId])
+}
+
+model ClassSubject {
+  id String @id @default(cuid())
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([classId, subjectId])
+  @@index([classId])
+  @@index([subjectId])
+}
+
+model Examination {
+  id           String   @id @default(cuid())
+  name         String
+  term         String
+  academicYear Int
+  date         DateTime
+
+  status ExaminationStatus @default(ACTIVE)
+
+  teacherId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id])
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  examinationSubjects ExaminationSubject[]
+  marks               Mark[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([classId, name, academicYear])
+  @@index([classId])
+  @@index([teacherId])
+}
+
+model ExaminationSubject {
+  id String @id @default(cuid())
+
+  examinationId String
+  examination   Examination @relation(fields: [examinationId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  maxMark  Int @default(100)
+  passMark Int @default(40)
+
+  createdAt DateTime @default(now())
+
+  @@unique([examinationId, subjectId])
+  @@index([examinationId])
+  @@index([subjectId])
+}
+
+model Mark {
+  id String @id @default(cuid())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  examinationId String
+  examination   Examination @relation(fields: [examinationId], references: [id])
+
+  marksObtained Float?
+  isAbsent      Boolean @default(false)
+
+  percentage Float?
+  grade      String?
+  passed     Boolean?
+
+  status MarkStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, subjectId, examinationId])
+  @@index([studentId])
+  @@index([subjectId])
+  @@index([examinationId])
+}

@@ -1,7 +1,30 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { Pencil, Plus, Search, Trash2, UserRound } from "lucide-react"
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
+import {
+  Loader2,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  UserRound,
+} from "lucide-react"
+
+import {
+  getClasses,
+  type ClassRecord,
+} from "@/services/classes"
+import {
+  createStudent,
+  deleteStudent as deleteStudentRequest,
+  getStudents,
+  updateStudent,
+  type StudentRecord,
+} from "@/services/students"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -22,126 +45,242 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-const initialStudents = [
-  {
-    id: "ST001",
-    name: "Nimal Perera",
-    className: "Grade 10-A",
-    average: 78.4,
-    status: "Active",
-  },
-  {
-    id: "ST002",
-    name: "Kavindu Silva",
-    className: "Grade 10-A",
-    average: 66.2,
-    status: "Active",
-  },
-  {
-    id: "ST003",
-    name: "Amaya Fernando",
-    className: "Grade 10-A",
-    average: 84.9,
-    status: "Active",
-  },
-  {
-    id: "ST004",
-    name: "Sahan Kumara",
-    className: "Grade 10-A",
-    average: 49.6,
-    status: "Needs Attention",
-  },
-  {
-    id: "ST005",
-    name: "Dinithi Jayasinghe",
-    className: "Grade 10-A",
-    average: 72.1,
-    status: "Active",
-  },
-]
-
 export default function StudentsPage() {
-  const [students, setStudents] = useState(initialStudents)
+  const [students, setStudents] = useState<StudentRecord[]>([])
+  const [classes, setClasses] = useState<ClassRecord[]>([])
+
   const [search, setSearch] = useState("")
   const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+
+  const [editingId, setEditingId] =
+    useState<string | null>(null)
+
+  const [studentToDelete, setStudentToDelete] =
+    useState<string | null>(null)
 
   const [studentId, setStudentId] = useState("")
   const [studentName, setStudentName] = useState("")
-  const [studentClass, setStudentClass] = useState("Grade 10-A")
+  const [studentClass, setStudentClass] = useState("")
 
-  const [studentToDelete, setStudentToDelete] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  async function loadPageData() {
+    try {
+      setLoading(true)
+      setError("")
+
+      const [studentsResponse, classesResponse] =
+        await Promise.all([
+          getStudents(),
+          getClasses(),
+        ])
+
+      setStudents(studentsResponse.students)
+      setClasses(classesResponse.classes)
+
+      const firstClass = classesResponse.classes[0]
+
+      if (firstClass) {
+        setStudentClass((current) =>
+          current || firstClass.id
+        )
+      }
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load student information."
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function initialLoad() {
+      try {
+        const [studentsResponse, classesResponse] =
+          await Promise.all([
+            getStudents(),
+            getClasses(),
+          ])
+
+        if (cancelled) return
+
+        setStudents(studentsResponse.students)
+        setClasses(classesResponse.classes)
+
+        const firstClass = classesResponse.classes[0]
+
+        if (firstClass) {
+          setStudentClass(firstClass.id)
+        }
+      } catch (error) {
+        if (cancelled) return
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load student information."
+        )
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void initialLoad()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const filteredStudents = useMemo(() => {
     const query = search.toLowerCase().trim()
 
-    if (!query) return students
+    if (!query) {
+      return students
+    }
 
     return students.filter(
       (student) =>
-        student.name.toLowerCase().includes(query) ||
-        student.id.toLowerCase().includes(query) ||
-        student.className.toLowerCase().includes(query)
+        student.name
+          .toLowerCase()
+          .includes(query) ||
+        student.registrationNo
+          .toLowerCase()
+          .includes(query) ||
+        student.className
+          .toLowerCase()
+          .includes(query)
     )
   }, [search, students])
 
   function resetForm() {
     setStudentId("")
     setStudentName("")
-    setStudentClass("Grade 10-A")
+    setStudentClass(classes[0]?.id ?? "")
     setEditingId(null)
+    setError("")
   }
 
-  function handleSave() {
-    if (!studentId.trim() || !studentName.trim()) return
-
-    if (editingId) {
-      setStudents((current) =>
-        current.map((student) =>
-          student.id === editingId
-            ? {
-                ...student,
-                id: studentId,
-                name: studentName,
-                className: studentClass,
-              }
-            : student
-        )
+  async function handleSave() {
+    if (
+      !studentId.trim() ||
+      !studentName.trim() ||
+      !studentClass
+    ) {
+      setError(
+        "Please enter the student ID, name and class."
       )
-    } else {
-      setStudents((current) => [
-        ...current,
-        {
-          id: studentId,
-          name: studentName,
-          className: studentClass,
-          average: 0,
-          status: "Active",
-        },
-      ])
+      return
     }
 
-    resetForm()
-    setShowForm(false)
+    try {
+      setSaving(true)
+      setError("")
+      setSuccess("")
+
+      if (editingId) {
+        await updateStudent(editingId, {
+          registrationNo: studentId,
+          name: studentName,
+          classId: studentClass,
+        })
+
+        setSuccess(
+          "Student updated successfully."
+        )
+      } else {
+        await createStudent({
+          registrationNo: studentId,
+          name: studentName,
+          classId: studentClass,
+        })
+
+        setSuccess(
+          "Student added successfully."
+        )
+      }
+
+      await loadPageData()
+
+      resetForm()
+      setShowForm(false)
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save student."
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function handleEdit(student: (typeof initialStudents)[number]) {
+  function handleEdit(student: StudentRecord) {
     setEditingId(student.id)
-    setStudentId(student.id)
+    setStudentId(student.registrationNo)
     setStudentName(student.name)
-    setStudentClass(student.className)
+    setStudentClass(student.classId)
     setShowForm(true)
+    setError("")
+    setSuccess("")
   }
 
-  function handleDelete() {
-    if (!studentToDelete) return
+  async function handleDelete() {
+    if (!studentToDelete) {
+      return
+    }
 
-    setStudents((current) =>
-        current.filter((student) => student.id !== studentToDelete)
-    )
+    try {
+      setDeleting(true)
+      setError("")
+      setSuccess("")
 
-    setStudentToDelete(null)
+      await deleteStudentRequest(studentToDelete)
+
+      setStudents((current) =>
+        current.filter(
+          (student) =>
+            student.id !== studentToDelete
+        )
+      )
+
+      setSuccess(
+        "Student deleted successfully."
+      )
+
+      setStudentToDelete(null)
+    } catch (error) {
+      setStudentToDelete(null)
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete student."
+      )
+    } finally {
+      setDeleting(false)
+    }
   }
+
+  const activeStudents = students.filter(
+    (student) => student.status === "ACTIVE"
+  ).length
+
+  const needsAttention = students.filter(
+    (student) => student.needsAttention
+  ).length
 
   return (
     <div className="space-y-7">
@@ -162,8 +301,10 @@ export default function StudentsPage() {
 
         <Button
           className="h-10 gap-2 self-start lg:self-auto"
+          disabled={classes.length === 0}
           onClick={() => {
             resetForm()
+            setSuccess("")
             setShowForm(true)
           }}
         >
@@ -172,6 +313,27 @@ export default function StudentsPage() {
         </Button>
       </div>
 
+      {classes.length === 0 && !loading && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+          Create a class before adding students.
+        </div>
+      )}
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="rounded-xl border border-secondary bg-secondary/40 px-4 py-3 text-sm font-medium">
+          {success}
+        </div>
+      )}
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card className="glass">
           <CardContent className="flex items-center justify-between p-5">
@@ -179,6 +341,7 @@ export default function StudentsPage() {
               <p className="text-sm text-muted-foreground">
                 Total Students
               </p>
+
               <p className="mt-1 text-3xl font-semibold">
                 {students.length}
               </p>
@@ -195,12 +358,9 @@ export default function StudentsPage() {
             <p className="text-sm text-muted-foreground">
               Active Students
             </p>
+
             <p className="mt-1 text-3xl font-semibold">
-              {
-                students.filter(
-                  (student) => student.status === "Active"
-                ).length
-              }
+              {activeStudents}
             </p>
           </CardContent>
         </Card>
@@ -210,13 +370,9 @@ export default function StudentsPage() {
             <p className="text-sm text-muted-foreground">
               Needs Attention
             </p>
+
             <p className="mt-1 text-3xl font-semibold">
-              {
-                students.filter(
-                  (student) =>
-                    student.status === "Needs Attention"
-                ).length
-              }
+              {needsAttention}
             </p>
           </CardContent>
         </Card>
@@ -226,7 +382,9 @@ export default function StudentsPage() {
         <Card className="glass-strong">
           <CardHeader>
             <CardTitle className="text-lg">
-              {editingId ? "Edit Student" : "Add Student"}
+              {editingId
+                ? "Edit Student"
+                : "Add Student"}
             </CardTitle>
           </CardHeader>
 
@@ -241,8 +399,9 @@ export default function StudentsPage() {
                 onChange={(event) =>
                   setStudentId(event.target.value)
                 }
-                placeholder="ST006"
+                placeholder="ST001"
                 className="h-11"
+                disabled={saving}
               />
             </div>
 
@@ -258,6 +417,7 @@ export default function StudentsPage() {
                 }
                 placeholder="Enter student name"
                 className="h-11"
+                disabled={saving}
               />
             </div>
 
@@ -272,20 +432,36 @@ export default function StudentsPage() {
                   setStudentClass(event.target.value)
                 }
                 className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                disabled={saving}
               >
-                <option>Grade 10-A</option>
-                <option>Grade 10-B</option>
-                <option>Grade 11-A</option>
+                {classes.map((item) => (
+                  <option
+                    key={item.id}
+                    value={item.id}
+                  >
+                    {item.name} — {item.academicYear}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="flex gap-3 md:col-span-3">
-              <Button onClick={handleSave}>
-                {editingId ? "Update Student" : "Save Student"}
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving && (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                )}
+
+                {editingId
+                  ? "Update Student"
+                  : "Save Student"}
               </Button>
 
               <Button
                 variant="outline"
+                disabled={saving}
                 onClick={() => {
                   resetForm()
                   setShowForm(false)
@@ -321,151 +497,175 @@ export default function StudentsPage() {
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-190 text-left">
-              <thead className="border-y bg-muted/50">
-                <tr>
-                  <th className="px-5 py-3 text-sm font-semibold">
-                    Student ID
-                  </th>
-                  <th className="px-5 py-3 text-sm font-semibold">
-                    Student Name
-                  </th>
-                  <th className="px-5 py-3 text-sm font-semibold">
-                    Class
-                  </th>
-                  <th className="px-5 py-3 text-sm font-semibold">
-                    Average
-                  </th>
-                  <th className="px-5 py-3 text-sm font-semibold">
-                    Status
-                  </th>
-                  <th className="px-5 py-3 text-right text-sm font-semibold">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-border">
-                {filteredStudents.map((student) => (
-                  <tr
-                    key={student.id}
-                    className="transition-colors hover:bg-muted/30"
-                  >
-                    <td className="px-5 py-4 text-sm font-medium">
-                      {student.id}
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                          {student.name.charAt(0)}
-                        </div>
-
-                        <span className="text-sm font-medium">
-                          {student.name}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4 text-sm">
-                      {student.className}
-                    </td>
-
-                    <td className="px-5 py-4 text-sm">
-                      {student.average.toFixed(1)}%
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span
-                        className={
-                          student.status === "Active"
-                            ? "rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground"
-                            : "rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive"
-                        }
-                      >
-                        {student.status}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Edit ${student.name}`}
-                          onClick={() => handleEdit(student)}
-                        >
-                          <Pencil className="size-4" />
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Delete ${student.name}`}
-                          onClick={() =>
-                            setStudentToDelete(student.id)
-                          }
-                        >
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-
-                {filteredStudents.length === 0 && (
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 p-10 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+              Loading students...
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-190 text-left">
+                <thead className="border-y bg-muted/50">
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-5 py-12 text-center text-sm text-muted-foreground"
-                    >
-                      No students found.
-                    </td>
+                    <th className="px-5 py-3 text-sm font-semibold">
+                      Student ID
+                    </th>
+
+                    <th className="px-5 py-3 text-sm font-semibold">
+                      Student Name
+                    </th>
+
+                    <th className="px-5 py-3 text-sm font-semibold">
+                      Class
+                    </th>
+
+                    <th className="px-5 py-3 text-sm font-semibold">
+                      Average
+                    </th>
+
+                    <th className="px-5 py-3 text-sm font-semibold">
+                      Status
+                    </th>
+
+                    <th className="px-5 py-3 text-right text-sm font-semibold">
+                      Actions
+                    </th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+
+                <tbody className="divide-y divide-border">
+                  {filteredStudents.map((student) => (
+                    <tr
+                      key={student.id}
+                      className="transition-colors hover:bg-muted/30"
+                    >
+                      <td className="px-5 py-4 text-sm font-medium">
+                        {student.registrationNo}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                            {student.name
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+
+                          <span className="text-sm font-medium">
+                            {student.name}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4 text-sm">
+                        {student.className}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm">
+                        {student.average === null
+                          ? "-"
+                          : `${student.average.toFixed(1)}%`}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        {student.needsAttention ? (
+                          <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                            Needs Attention
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
+                            Active
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Edit ${student.name}`}
+                            onClick={() =>
+                              handleEdit(student)
+                            }
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Delete ${student.name}`}
+                            onClick={() =>
+                              setStudentToDelete(
+                                student.id
+                              )
+                            }
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {filteredStudents.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-5 py-12 text-center text-sm text-muted-foreground"
+                      >
+                        No students found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
-    
-    <AlertDialog
+
+      <AlertDialog
         open={studentToDelete !== null}
         onOpenChange={(open) => {
-            if (!open) setStudentToDelete(null)
+          if (!open && !deleting) {
+            setStudentToDelete(null)
+          }
         }}
-        >
+      >
         <AlertDialogContent className="glass-strong">
           <AlertDialogHeader className="items-center text-center">
             <div className="mb-2 flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                <Trash2 className="size-5" />
+              <Trash2 className="size-5" />
             </div>
 
             <AlertDialogTitle className="w-full text-center text-lg font-semibold">
-                Remove student?
+              Remove student?
             </AlertDialogTitle>
 
             <AlertDialogDescription className="w-full text-center">
-                This action cannot be undone.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           <AlertDialogFooter>
-            <AlertDialogCancel>
-                Cancel
+            <AlertDialogCancel disabled={deleting}>
+              Cancel
             </AlertDialogCancel>
 
             <AlertDialogAction
-                onClick={handleDelete}
-                className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-white hover:bg-destructive/90"
             >
-                Delete Student
+              {deleting
+                ? "Deleting..."
+                : "Delete Student"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-    </AlertDialog>
-    
+      </AlertDialog>
     </div>
   )
 }

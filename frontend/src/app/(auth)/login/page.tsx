@@ -2,7 +2,9 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
+import { loginTeacher } from "@/services/auth"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -15,11 +17,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export default function LoginPage() {
+  const router = useRouter()
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault()
 
     if (!email.trim() || !password.trim()) {
@@ -32,16 +39,34 @@ export default function LoginPage() {
       return
     }
 
-    setError("")
+    try {
+      setLoading(true)
+      setError("")
 
-    // Temporary until backend authentication is implemented.
-    console.log("Login submitted", { email })
+      await loginTeacher({
+        email,
+        password,
+      })
+
+      router.push("/dashboard")
+      router.refresh()
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to login."
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <Card className="glass-strong shadow-xl">
       <CardHeader className="text-center">
-        <CardTitle className="text-xl">Welcome Back</CardTitle>
+        <CardTitle className="text-xl">
+          Welcome Back
+        </CardTitle>
 
         <CardDescription className="text-sm sm:text-base">
           Sign in to continue to EduInsight
@@ -49,9 +74,15 @@ export default function LoginPage() {
       </CardHeader>
 
       <CardContent>
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form
+          className="space-y-4"
+          onSubmit={handleSubmit}
+        >
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium">
+            <Label
+              htmlFor="email"
+              className="text-sm font-medium"
+            >
               Email
             </Label>
 
@@ -62,13 +93,19 @@ export default function LoginPage() {
               autoComplete="email"
               className="h-11 text-base"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) =>
+                setEmail(event.target.value)
+              }
+              disabled={loading}
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-sm font-medium">
+              <Label
+                htmlFor="password"
+                className="text-sm font-medium"
+              >
                 Password
               </Label>
 
@@ -81,13 +118,16 @@ export default function LoginPage() {
             </div>
 
             <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                className="h-11 text-base"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              className="h-11 text-base"
+              value={password}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
+              disabled={loading}
             />
           </div>
 
@@ -98,7 +138,10 @@ export default function LoginPage() {
               className="size-4 rounded border-border accent-primary"
             />
 
-            <Label htmlFor="remember" className="text-sm font-normal">
+            <Label
+              htmlFor="remember"
+              className="text-sm font-normal"
+            >
               Remember me
             </Label>
           </div>
@@ -115,8 +158,9 @@ export default function LoginPage() {
           <Button
             className="h-11 w-full text-base font-medium"
             type="submit"
+            disabled={loading}
           >
-            Sign In
+            {loading ? "Signing in..." : "Sign In"}
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">

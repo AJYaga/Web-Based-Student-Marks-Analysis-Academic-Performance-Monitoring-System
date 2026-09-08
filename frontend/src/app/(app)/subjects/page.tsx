@@ -1,16 +1,44 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { BookOpen, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
+
+import {
+  BookOpen,
+  Loader2,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react"
+
+import {
+  getClasses,
+  type ClassRecord,
+} from "@/services/classes"
+
+import {
+  createSubject,
+  deleteSubject as deleteSubjectRequest,
+  getSubjects,
+  updateSubject,
+  type SubjectRecord,
+} from "@/services/subjects"
 
 import { Button } from "@/components/ui/button"
+
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+
 import { Input } from "@/components/ui/input"
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,109 +50,327 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-const initialSubjects = [
-  { code: "MAT10", name: "Mathematics", className: "Grade 10", maxMark: 100, status: "Active" },
-  { code: "SCI10", name: "Science", className: "Grade 10", maxMark: 100, status: "Active" },
-  { code: "ENG10", name: "English", className: "Grade 10", maxMark: 100, status: "Active" },
-]
-
 export default function SubjectsPage() {
-  const [subjects, setSubjects] = useState(initialSubjects)
-  const [search, setSearch] = useState("")
-  const [showForm, setShowForm] = useState(false)
-  const [editingCode, setEditingCode] = useState<string | null>(null)
-  const [deleteCode, setDeleteCode] = useState<string | null>(null)
+  const [subjects, setSubjects] =
+    useState<SubjectRecord[]>([])
 
-  const [code, setCode] = useState("")
-  const [name, setName] = useState("")
-  const [className, setClassName] = useState("Grade 10")
-  const [maxMark, setMaxMark] = useState("100")
+  const [classes, setClasses] =
+    useState<ClassRecord[]>([])
+
+  const [search, setSearch] =
+    useState("")
+
+  const [showForm, setShowForm] =
+    useState(false)
+
+  const [editingId, setEditingId] =
+    useState<string | null>(null)
+
+  const [deleteId, setDeleteId] =
+    useState<string | null>(null)
+
+  const [code, setCode] =
+    useState("")
+
+  const [name, setName] =
+    useState("")
+
+  const [classId, setClassId] =
+    useState("")
+
+  const [maxMark, setMaxMark] =
+    useState("100")
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [saving, setSaving] =
+    useState(false)
+
+  const [deleting, setDeleting] =
+    useState(false)
+
+  const [error, setError] =
+    useState("")
+
+  const [success, setSuccess] =
+    useState("")
+
+  async function loadPageData() {
+    try {
+      setLoading(true)
+      setError("")
+
+      const [
+        subjectsResponse,
+        classesResponse,
+      ] = await Promise.all([
+        getSubjects(),
+        getClasses(),
+      ])
+
+      setSubjects(
+        subjectsResponse.subjects
+      )
+
+      setClasses(
+        classesResponse.classes
+      )
+
+      const firstClass =
+        classesResponse.classes[0]
+
+      if (firstClass) {
+        setClassId((current) =>
+          current || firstClass.id
+        )
+      }
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load subject information."
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function initialLoad() {
+      try {
+        const [
+          subjectsResponse,
+          classesResponse,
+        ] = await Promise.all([
+          getSubjects(),
+          getClasses(),
+        ])
+
+        if (cancelled) return
+
+        setSubjects(
+          subjectsResponse.subjects
+        )
+
+        setClasses(
+          classesResponse.classes
+        )
+
+        const firstClass =
+          classesResponse.classes[0]
+
+        if (firstClass) {
+          setClassId(firstClass.id)
+        }
+      } catch (error) {
+        if (cancelled) return
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load subject information."
+        )
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void initialLoad()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim()
+    const q =
+      search.toLowerCase().trim()
+
     if (!q) return subjects
 
     return subjects.filter(
       (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.code.toLowerCase().includes(q)
+        item.name
+          .toLowerCase()
+          .includes(q) ||
+        item.code
+          .toLowerCase()
+          .includes(q) ||
+        item.className
+          .toLowerCase()
+          .includes(q)
     )
   }, [subjects, search])
 
   function resetForm() {
     setCode("")
     setName("")
-    setClassName("Grade 10")
     setMaxMark("100")
-    setEditingCode(null)
+    setClassId(
+      classes[0]?.id ?? ""
+    )
+    setEditingId(null)
+    setError("")
   }
 
-  function saveSubject() {
-    if (!code.trim() || !name.trim()) return
-
-    if (editingCode) {
-      setSubjects((current) =>
-        current.map((item) =>
-          item.code === editingCode
-            ? {
-                ...item,
-                code,
-                name,
-                className,
-                maxMark: Number(maxMark),
-              }
-            : item
-        )
+  async function saveSubject() {
+    if (
+      !code.trim() ||
+      !name.trim() ||
+      !classId
+    ) {
+      setError(
+        "Please enter the subject code, name and class."
       )
-    } else {
-      setSubjects((current) => [
-        ...current,
-        {
-          code,
-          name,
-          className,
-          maxMark: Number(maxMark),
-          status: "Active",
-        },
-      ])
+      return
     }
 
-    resetForm()
-    setShowForm(false)
+    const maximum =
+      Number(maxMark)
+
+    if (
+      !Number.isInteger(maximum) ||
+      maximum <= 0
+    ) {
+      setError(
+        "Maximum mark must be a positive number."
+      )
+      return
+    }
+
+    try {
+      setSaving(true)
+      setError("")
+      setSuccess("")
+
+      if (editingId) {
+        await updateSubject(
+          editingId,
+          {
+            code,
+            name,
+            maxMark: maximum,
+            classId,
+          }
+        )
+
+        setSuccess(
+          "Subject updated successfully."
+        )
+      } else {
+        await createSubject({
+          code,
+          name,
+          maxMark: maximum,
+          classId,
+        })
+
+        setSuccess(
+          "Subject added successfully."
+        )
+      }
+
+      await loadPageData()
+
+      resetForm()
+      setShowForm(false)
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save subject."
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function editSubject(item: (typeof initialSubjects)[number]) {
-    setEditingCode(item.code)
+  function editSubject(
+    item: SubjectRecord
+  ) {
+    setEditingId(item.id)
     setCode(item.code)
     setName(item.name)
-    setClassName(item.className)
-    setMaxMark(String(item.maxMark))
+    setMaxMark(
+      String(item.maxMark)
+    )
+    setClassId(
+      item.classId ?? ""
+    )
+
     setShowForm(true)
+    setError("")
+    setSuccess("")
   }
 
-  function deleteSubject() {
-    if (!deleteCode) return
-    setSubjects((current) => current.filter((item) => item.code !== deleteCode))
-    setDeleteCode(null)
+  async function confirmDelete() {
+    if (!deleteId) return
+
+    try {
+      setDeleting(true)
+      setError("")
+      setSuccess("")
+
+      await deleteSubjectRequest(
+        deleteId
+      )
+
+      setSubjects((current) =>
+        current.filter(
+          (subject) =>
+            subject.id !== deleteId
+        )
+      )
+
+      setSuccess(
+        "Subject deleted successfully."
+      )
+
+      setDeleteId(null)
+    } catch (error) {
+      setDeleteId(null)
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete subject."
+      )
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
     <div className="space-y-7">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mb-1 text-sm font-medium text-primary">Academic Setup</p>
+          <p className="mb-1 text-sm font-medium text-primary">
+            Academic Setup
+          </p>
+
           <h1 className="text-3xl font-semibold tracking-tight">
             Subject Management
           </h1>
+
           <p className="mt-1 text-base text-muted-foreground">
-            Manage subjects used for marks, analytics and reports.
+            Manage subjects used for marks,
+            analytics and reports.
           </p>
         </div>
 
         <Button
           className="gap-2"
+          disabled={
+            classes.length === 0
+          }
           onClick={() => {
             resetForm()
+            setSuccess("")
             setShowForm(true)
           }}
         >
@@ -133,12 +379,41 @@ export default function SubjectsPage() {
         </Button>
       </div>
 
+      {classes.length === 0 &&
+        !loading && (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+            Create a class before
+            adding subjects.
+          </div>
+        )}
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="rounded-xl border border-secondary bg-secondary/40 px-4 py-3 text-sm font-medium">
+          {success}
+        </div>
+      )}
+
       <Card className="glass max-w-sm">
         <CardContent className="flex items-center justify-between p-5">
           <div>
-            <p className="text-sm text-muted-foreground">Total Subjects</p>
-            <p className="mt-1 text-3xl font-semibold">{subjects.length}</p>
+            <p className="text-sm text-muted-foreground">
+              Total Subjects
+            </p>
+
+            <p className="mt-1 text-3xl font-semibold">
+              {subjects.length}
+            </p>
           </div>
+
           <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <BookOpen className="size-5" />
           </div>
@@ -149,7 +424,9 @@ export default function SubjectsPage() {
         <Card className="glass-strong">
           <CardHeader>
             <CardTitle className="text-lg">
-              {editingCode ? "Edit Subject" : "Add Subject"}
+              {editingId
+                ? "Edit Subject"
+                : "Add Subject"}
             </CardTitle>
           </CardHeader>
 
@@ -157,41 +434,71 @@ export default function SubjectsPage() {
             <Input
               placeholder="Subject code"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) =>
+                setCode(e.target.value)
+              }
               className="h-11"
+              disabled={saving}
             />
 
             <Input
               placeholder="Subject name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) =>
+                setName(e.target.value)
+              }
               className="h-11"
+              disabled={saving}
             />
 
             <select
-              value={className}
-              onChange={(e) => setClassName(e.target.value)}
+              value={classId}
+              onChange={(e) =>
+                setClassId(e.target.value)
+              }
               className="h-11 rounded-lg border border-input bg-background px-3"
+              disabled={saving}
             >
-              <option>Grade 9</option>
-              <option>Grade 10</option>
-              <option>Grade 11</option>
+              {classes.map((item) => (
+                <option
+                  key={item.id}
+                  value={item.id}
+                >
+                  {item.name} —{" "}
+                  {item.academicYear}
+                </option>
+              ))}
             </select>
 
             <Input
               type="number"
+              min={1}
               placeholder="Maximum mark"
               value={maxMark}
-              onChange={(e) => setMaxMark(e.target.value)}
+              onChange={(e) =>
+                setMaxMark(e.target.value)
+              }
               className="h-11"
+              disabled={saving}
             />
 
             <div className="flex gap-3 md:col-span-4">
-              <Button onClick={saveSubject}>
-                {editingCode ? "Update Subject" : "Save Subject"}
+              <Button
+                onClick={saveSubject}
+                disabled={saving}
+              >
+                {saving && (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                )}
+
+                {editingId
+                  ? "Update Subject"
+                  : "Save Subject"}
               </Button>
+
               <Button
                 variant="outline"
+                disabled={saving}
                 onClick={() => {
                   resetForm()
                   setShowForm(false)
@@ -207,12 +514,20 @@ export default function SubjectsPage() {
       <Card className="glass overflow-hidden">
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-lg">Subject List</CardTitle>
+            <CardTitle className="text-lg">
+              Subject List
+            </CardTitle>
+
             <div className="relative w-full max-w-sm">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
               <Input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) =>
+                  setSearch(
+                    e.target.value
+                  )
+                }
                 placeholder="Search subjects..."
                 className="pl-9"
               />
@@ -221,73 +536,153 @@ export default function SubjectsPage() {
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-190">
-              <thead className="border-y bg-muted/50">
-                <tr>
-                  <th className="px-5 py-3 text-left">Code</th>
-                  <th className="px-5 py-3 text-left">Subject</th>
-                  <th className="px-5 py-3 text-left">Class</th>
-                  <th className="px-5 py-3 text-left">Max Mark</th>
-                  <th className="px-5 py-3 text-left">Status</th>
-                  <th className="px-5 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 p-10 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+              Loading subjects...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-10 text-center text-sm text-muted-foreground">
+              No subjects found.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-190">
+                <thead className="border-y bg-muted/50">
+                  <tr>
+                    <th className="px-5 py-3 text-left">
+                      Code
+                    </th>
 
-              <tbody className="divide-y">
-                {filtered.map((item) => (
-                  <tr key={item.code} className="hover:bg-muted/30">
-                    <td className="px-5 py-4 font-medium">{item.code}</td>
-                    <td className="px-5 py-4">{item.name}</td>
-                    <td className="px-5 py-4">{item.className}</td>
-                    <td className="px-5 py-4">{item.maxMark}</td>
-                    <td className="px-5 py-4">
-                      <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => editSubject(item)}>
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteCode(item.code)}>
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </td>
+                    <th className="px-5 py-3 text-left">
+                      Subject
+                    </th>
+
+                    <th className="px-5 py-3 text-left">
+                      Class
+                    </th>
+
+                    <th className="px-5 py-3 text-left">
+                      Max Mark
+                    </th>
+
+                    <th className="px-5 py-3 text-left">
+                      Status
+                    </th>
+
+                    <th className="px-5 py-3 text-right">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+
+                <tbody className="divide-y">
+                  {filtered.map(
+                    (item) => (
+                      <tr
+                        key={item.id}
+                        className="hover:bg-muted/30"
+                      >
+                        <td className="px-5 py-4 font-medium">
+                          {item.code}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          {item.name}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          {item.className}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          {item.maxMark}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+                            {item.status ===
+                            "ACTIVE"
+                              ? "Active"
+                              : item.status}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                editSubject(
+                                  item
+                                )
+                              }
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                setDeleteId(
+                                  item.id
+                                )
+                              }
+                            >
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <AlertDialog
-        open={deleteCode !== null}
-        onOpenChange={(open) => !open && setDeleteCode(null)}
+        open={deleteId !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setDeleteId(null)
+          }
+        }}
       >
         <AlertDialogContent className="glass-strong">
           <AlertDialogHeader className="items-center text-center">
             <div className="mb-2 flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
               <Trash2 className="size-5" />
             </div>
+
             <AlertDialogTitle className="w-full text-center">
               Remove subject?
             </AlertDialogTitle>
+
             <AlertDialogDescription className="w-full text-center">
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel
+              disabled={deleting}
+            >
+              Cancel
+            </AlertDialogCancel>
+
             <AlertDialogAction
-              onClick={deleteSubject}
+              onClick={confirmDelete}
+              disabled={deleting}
               className="bg-destructive text-white hover:bg-destructive/90"
             >
-              Delete Subject
+              {deleting
+                ? "Deleting..."
+                : "Delete Subject"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -2,7 +2,11 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import {
+  usePathname,
+  useRouter,
+} from "next/navigation"
+import { logoutTeacher } from "@/services/auth"
 import {
   BarChart3,
   BookOpen,
@@ -10,6 +14,7 @@ import {
   FileText,
   GraduationCap,
   LayoutDashboard,
+  LogOut,
   Settings,
   Users,
 } from "lucide-react"
@@ -79,6 +84,16 @@ const workNavigation = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function handleLogout() {
+    try {
+      await logoutTeacher()
+    } finally {
+      router.replace("/login")
+      router.refresh()
+    }
+  }
 
   return (
     <Sidebar collapsible="icon">
@@ -198,6 +213,17 @@ export function AppSidebar() {
         <SidebarSeparator />
 
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              className="h-10 text-[15px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+              tooltip="Logout"
+              onClick={handleLogout}
+            >
+              <LogOut />
+              <span>Logout</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
           <SidebarMenuItem>
             <SidebarMenuButton
               render={<Link href="/settings" />}

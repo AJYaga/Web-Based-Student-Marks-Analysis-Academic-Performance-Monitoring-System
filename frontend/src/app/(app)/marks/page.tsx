@@ -1,120 +1,445 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
+
 import {
   CheckCircle2,
   ClipboardPenLine,
+  Loader2,
   Save,
   Search,
   TriangleAlert,
 } from "lucide-react"
 
+import {
+  getClasses,
+  type ClassRecord,
+} from "@/services/classes"
+
+import {
+  getExaminations,
+  type ExaminationRecord,
+} from "@/services/examinations"
+
+import {
+  getMarks,
+  saveMarks,
+  type MarksContext,
+} from "@/services/marks"
+
 import { Button } from "@/components/ui/button"
+
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+
 import { Input } from "@/components/ui/input"
 
-type StudentMark = {
-  id: string
+type EditableStudentMark = {
+  studentId: string
+  registrationNo: string
   name: string
   marks: string
   absent: boolean
 }
 
-const initialStudents: StudentMark[] = [
-  { id: "ST001", name: "Nimal Perera", marks: "78", absent: false },
-  { id: "ST002", name: "Kavindu Silva", marks: "65", absent: false },
-  { id: "ST003", name: "Amaya Fernando", marks: "88", absent: false },
-  { id: "ST004", name: "Sahan Kumara", marks: "", absent: false },
-  { id: "ST005", name: "Dinithi Jayasinghe", marks: "73", absent: false },
-]
-
-const MAX_MARK = 100
-const PASS_MARK = 40
-
-function getGrade(mark: number) {
-  if (mark >= 75) return "A"
-  if (mark >= 65) return "B"
-  if (mark >= 55) return "C"
-  if (mark >= 40) return "S"
+function getGrade(percentage: number) {
+  if (percentage >= 75) return "A"
+  if (percentage >= 65) return "B"
+  if (percentage >= 55) return "C"
+  if (percentage >= 40) return "S"
   return "F"
 }
 
 export default function MarksPage() {
-  const [students, setStudents] = useState<StudentMark[]>(initialStudents)
-  const [search, setSearch] = useState("")
-  const [saved, setSaved] = useState(false)
+  const [classes, setClasses] =
+    useState<ClassRecord[]>([])
 
-  const [academicYear, setAcademicYear] = useState("2026")
-  const [className, setClassName] = useState("Grade 10-A")
-  const [subject, setSubject] = useState("Mathematics")
-  const [exam, setExam] = useState("First Term Examination")
+  const [examinations, setExaminations] =
+    useState<ExaminationRecord[]>([])
 
-  const filteredStudents = useMemo(() => {
-    const q = search.toLowerCase().trim()
+  const [students, setStudents] =
+    useState<EditableStudentMark[]>([])
 
-    if (!q) return students
+  const [context, setContext] =
+    useState<MarksContext | null>(null)
 
-    return students.filter(
-      (student) =>
-        student.name.toLowerCase().includes(q) ||
-        student.id.toLowerCase().includes(q)
+  const [classId, setClassId] =
+    useState("")
+
+  const [examId, setExamId] =
+    useState("")
+
+  const [subjectId, setSubjectId] =
+    useState("")
+
+  const [search, setSearch] =
+    useState("")
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [loadingMarks, setLoadingMarks] =
+    useState(false)
+
+  const [saving, setSaving] =
+    useState(false)
+
+  const [error, setError] =
+    useState("")
+
+  const [success, setSuccess] =
+    useState("")
+
+  const classExaminations = useMemo(
+    () =>
+      examinations.filter(
+        (exam) =>
+          exam.classId === classId
+      ),
+    [examinations, classId]
+  )
+
+  const selectedExam =
+    classExaminations.find(
+      (exam) => exam.id === examId
     )
-  }, [search, students])
 
-  const invalidCount = students.filter((student) => {
-    if (student.absent || student.marks === "") return false
+  const availableSubjects =
+    selectedExam?.subjects ?? []
 
-    const value = Number(student.marks)
+  const maxMark =
+    context?.maxMark ??
+    availableSubjects.find(
+      (subject) =>
+        subject.id === subjectId
+    )?.maxMark ??
+    100
 
-    return Number.isNaN(value) || value < 0 || value > MAX_MARK
-  }).length
+  const passMark =
+    context?.passMark ??
+    availableSubjects.find(
+      (subject) =>
+        subject.id === subjectId
+    )?.passMark ??
+    40
 
-  const missingCount = students.filter(
-    (student) => !student.absent && student.marks === ""
-  ).length
+  useEffect(() => {
+    let cancelled = false
 
-  function updateMark(id: string, value: string) {
-    setSaved(false)
+    async function initialLoad() {
+      try {
+        const [
+          classResponse,
+          examinationResponse,
+        ] = await Promise.all([
+          getClasses(),
+          getExaminations(),
+        ])
+
+        if (cancelled) return
+
+        setClasses(
+          classResponse.classes
+        )
+
+        setExaminations(
+          examinationResponse.examinations
+        )
+
+        const firstClass =
+          classResponse.classes[0]
+
+        if (firstClass) {
+          const firstExam =
+            examinationResponse.examinations.find(
+              (exam) =>
+                exam.classId === firstClass.id
+            )
+
+          const firstSubject =
+            firstExam?.subjects[0]
+
+          setClassId(firstClass.id)
+          setExamId(firstExam?.id ?? "")
+          setSubjectId(firstSubject?.id ?? "")
+        }
+      } catch (error) {
+        if (cancelled) return
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load marks setup."
+        )
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void initialLoad()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (
+      !classId ||
+      !examId ||
+      !subjectId
+    ) {
+      return
+    }
+
+    let cancelled = false
+
+    async function loadMarks() {
+      try {
+        setLoadingMarks(true)
+        setError("")
+        setSuccess("")
+
+        const response =
+          await getMarks(
+            classId,
+            examId,
+            subjectId
+          )
+
+        if (cancelled) return
+
+        setContext(response.context)
+
+        setStudents(
+          response.students.map(
+            (student) => ({
+              studentId:
+                student.studentId,
+
+              registrationNo:
+                student.registrationNo,
+
+              name: student.name,
+
+              marks:
+                student.marksObtained ===
+                null
+                  ? ""
+                  : String(
+                      student.marksObtained
+                    ),
+
+              absent:
+                student.isAbsent,
+            })
+          )
+        )
+      } catch (error) {
+        if (cancelled) return
+
+        setStudents([])
+        setContext(null)
+
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Unable to retrieve marks."
+        )
+      } finally {
+        if (!cancelled) {
+          setLoadingMarks(false)
+        }
+      }
+    }
+
+    void loadMarks()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    classId,
+    examId,
+    subjectId,
+  ])
+
+  const filteredStudents =
+    useMemo(() => {
+      const q =
+        search.toLowerCase().trim()
+
+      if (!q) return students
+
+      return students.filter(
+        (student) =>
+          student.name
+            .toLowerCase()
+            .includes(q) ||
+          student.registrationNo
+            .toLowerCase()
+            .includes(q)
+      )
+    }, [students, search])
+
+  const invalidCount =
+    students.filter((student) => {
+      if (
+        student.absent ||
+        student.marks === ""
+      ) {
+        return false
+      }
+
+      const value =
+        Number(student.marks)
+
+      return (
+        Number.isNaN(value) ||
+        value < 0 ||
+        value > maxMark
+      )
+    }).length
+
+  const missingCount =
+    students.filter(
+      (student) =>
+        !student.absent &&
+        student.marks === ""
+    ).length
+
+  function updateMark(
+    studentId: string,
+    value: string
+  ) {
+    setSuccess("")
 
     setStudents((current) =>
       current.map((student) =>
-        student.id === id
+        student.studentId ===
+        studentId
           ? {
               ...student,
               marks: value,
-              absent: value !== "" ? false : student.absent,
+              absent:
+                value !== ""
+                  ? false
+                  : student.absent,
             }
           : student
       )
     )
   }
 
-  function toggleAbsent(id: string) {
-    setSaved(false)
+  function toggleAbsent(
+    studentId: string
+  ) {
+    setSuccess("")
 
     setStudents((current) =>
       current.map((student) =>
-        student.id === id
+        student.studentId ===
+        studentId
           ? {
               ...student,
-              absent: !student.absent,
-              marks: !student.absent ? "" : student.marks,
+
+              absent:
+                !student.absent,
+
+              marks:
+                !student.absent
+                  ? ""
+                  : student.marks,
             }
           : student
       )
     )
   }
 
-  function handleSave() {
-    if (invalidCount > 0 || missingCount > 0) return
+  async function handleSave() {
+    if (
+      !classId ||
+      !examId ||
+      !subjectId
+    ) {
+      return
+    }
 
-    setSaved(true)
+    if (
+      invalidCount > 0 ||
+      missingCount > 0
+    ) {
+      return
+    }
+
+    try {
+      setSaving(true)
+      setError("")
+      setSuccess("")
+
+      await saveMarks({
+        classId,
+        examinationId: examId,
+        subjectId,
+
+        marks: students.map(
+          (student) => ({
+            studentId:
+              student.studentId,
+
+            marksObtained:
+              student.absent
+                ? null
+                : Number(
+                    student.marks
+                  ),
+
+            isAbsent:
+              student.absent,
+          })
+        ),
+      })
+
+      setSuccess(
+        "Marks saved successfully."
+      )
+
+      const refreshed =
+        await getMarks(
+          classId,
+          examId,
+          subjectId
+        )
+
+      setContext(
+        refreshed.context
+      )
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save marks."
+      )
+    } finally {
+      setSaving(false)
+    }
   }
+
+  const selectedClass =
+    classes.find(
+      (item) =>
+        item.id === classId
+    )
 
   return (
     <div className="space-y-7">
@@ -129,21 +454,50 @@ export default function MarksPage() {
           </h1>
 
           <p className="mt-1 text-base text-muted-foreground">
-            Enter and validate examination marks efficiently.
+            Enter and validate examination
+            marks efficiently.
           </p>
         </div>
 
         <Button
           className="gap-2"
           onClick={handleSave}
-          disabled={invalidCount > 0 || missingCount > 0}
+          disabled={
+            saving ||
+            loadingMarks ||
+            students.length === 0 ||
+            invalidCount > 0 ||
+            missingCount > 0
+          }
         >
-          <Save className="size-4" />
-          Save Marks
+          {saving ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Save className="size-4" />
+          )}
+
+          {saving
+            ? "Saving..."
+            : "Save Marks"}
         </Button>
       </div>
 
-      {/* Selection context */}
+      {error && (
+        <div
+          role="alert"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="flex items-center gap-2 rounded-xl border border-secondary bg-secondary/50 px-4 py-3 text-sm font-medium">
+          <CheckCircle2 className="size-4" />
+          {success}
+        </div>
+      )}
+
       <Card className="glass">
         <CardHeader>
           <CardTitle className="text-lg">
@@ -157,14 +511,10 @@ export default function MarksPage() {
               Academic Year
             </label>
 
-            <select
-              value={academicYear}
-              onChange={(e) => setAcademicYear(e.target.value)}
-              className="h-11 w-full rounded-lg border border-input bg-background px-3"
-            >
-              <option>2026</option>
-              <option>2025</option>
-            </select>
+            <div className="flex h-11 items-center rounded-lg border border-input bg-muted/30 px-3 text-sm">
+              {selectedClass?.academicYear ??
+                "-"}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -173,29 +523,40 @@ export default function MarksPage() {
             </label>
 
             <select
-              value={className}
-              onChange={(e) => setClassName(e.target.value)}
-              className="h-11 w-full rounded-lg border border-input bg-background px-3"
-            >
-              <option>Grade 10-A</option>
-              <option>Grade 10-B</option>
-              <option>Grade 11-A</option>
-            </select>
-          </div>
+              value={classId}
+              onChange={(e) => {
+                const nextClassId =
+                  e.target.value
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Subject
-            </label>
+                const nextExam =
+                  examinations.find(
+                    (exam) =>
+                      exam.classId === nextClassId
+                  )
 
-            <select
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
+                const nextSubject =
+                  nextExam?.subjects[0]
+
+                setClassId(nextClassId)
+                setExamId(nextExam?.id ?? "")
+                setSubjectId(nextSubject?.id ?? "")
+
+                setStudents([])
+                setContext(null)
+                setSuccess("")
+                setError("")
+              }}
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
+              disabled={loading}
             >
-              <option>Mathematics</option>
-              <option>Science</option>
-              <option>English</option>
+              {classes.map((item) => (
+                <option
+                  key={item.id}
+                  value={item.id}
+                >
+                  {item.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -205,18 +566,97 @@ export default function MarksPage() {
             </label>
 
             <select
-              value={exam}
-              onChange={(e) => setExam(e.target.value)}
+              value={examId}
+              onChange={(e) => {
+                const nextExamId =
+                  e.target.value
+
+                const nextExam =
+                  examinations.find(
+                    (exam) =>
+                      exam.id === nextExamId
+                  )
+
+                const nextSubject =
+                  nextExam?.subjects[0]
+
+                setExamId(nextExamId)
+                setSubjectId(nextSubject?.id ?? "")
+
+                setStudents([])
+                setContext(null)
+                setSuccess("")
+                setError("")
+              }}
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
+              disabled={
+                classExaminations.length ===
+                0
+              }
             >
-              <option>First Term Examination</option>
-              <option>Mid Year Examination</option>
+              {classExaminations.length ===
+              0 ? (
+                <option value="">
+                  No examinations
+                </option>
+              ) : (
+                classExaminations.map(
+                  (item) => (
+                    <option
+                      key={item.id}
+                      value={item.id}
+                    >
+                      {item.name}
+                    </option>
+                  )
+                )
+              )}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Subject
+            </label>
+
+            <select
+              value={subjectId}
+              onChange={(e) => {
+                setSubjectId(e.target.value)
+
+                setStudents([])
+                setContext(null)
+                setSuccess("")
+                setError("")
+              }}
+              className="h-11 w-full rounded-lg border border-input bg-background px-3"
+              disabled={
+                availableSubjects.length ===
+                0
+              }
+            >
+              {availableSubjects.length ===
+              0 ? (
+                <option value="">
+                  No subjects
+                </option>
+              ) : (
+                availableSubjects.map(
+                  (item) => (
+                    <option
+                      key={item.id}
+                      value={item.id}
+                    >
+                      {item.name}
+                    </option>
+                  )
+                )
+              )}
             </select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Status */}
       <section className="grid gap-4 md:grid-cols-3">
         <Card className="glass">
           <CardContent className="flex items-center gap-4 p-5">
@@ -228,8 +668,9 @@ export default function MarksPage() {
               <p className="text-sm text-muted-foreground">
                 Maximum Mark
               </p>
+
               <p className="text-2xl font-semibold">
-                {MAX_MARK}
+                {maxMark}
               </p>
             </div>
           </CardContent>
@@ -245,8 +686,9 @@ export default function MarksPage() {
               <p className="text-sm text-muted-foreground">
                 Pass Mark
               </p>
+
               <p className="text-2xl font-semibold">
-                {PASS_MARK}
+                {passMark}
               </p>
             </div>
           </CardContent>
@@ -262,39 +704,38 @@ export default function MarksPage() {
               <p className="text-sm text-muted-foreground">
                 Missing / Invalid
               </p>
+
               <p className="text-2xl font-semibold">
-                {missingCount + invalidCount}
+                {missingCount +
+                  invalidCount}
               </p>
             </div>
           </CardContent>
         </Card>
       </section>
 
-      {saved && (
-        <div className="flex items-center gap-2 rounded-xl border border-secondary bg-secondary/50 px-4 py-3 text-sm font-medium">
-          <CheckCircle2 className="size-4" />
-          Marks saved successfully.
-        </div>
-      )}
+      {(missingCount > 0 ||
+        invalidCount > 0) &&
+        students.length > 0 && (
+          <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
 
-      {(missingCount > 0 || invalidCount > 0) && (
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+            <div>
+              <p className="font-medium">
+                Marks require attention
+              </p>
 
-          <div>
-            <p className="font-medium">
-              Marks require attention
-            </p>
+              <p className="mt-0.5">
+                {missingCount > 0 &&
+                  `${missingCount} missing mark(s). `}
 
-            <p className="mt-0.5 text-sm">
-              {missingCount > 0 && `${missingCount} missing mark(s). `}
-              {invalidCount > 0 && `${invalidCount} invalid mark(s).`}
-            </p>
+                {invalidCount > 0 &&
+                  `${invalidCount} invalid mark(s).`}
+              </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Marks table */}
       <Card className="glass overflow-hidden">
         <CardHeader>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -304,7 +745,9 @@ export default function MarksPage() {
               </CardTitle>
 
               <p className="mt-1 text-sm text-muted-foreground">
-                {className} • {subject} • {exam}
+                {context
+                  ? `${context.className} • ${context.subjectName} • ${context.examinationName}`
+                  : "Select a valid examination context"}
               </p>
             </div>
 
@@ -313,7 +756,11 @@ export default function MarksPage() {
 
               <Input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) =>
+                  setSearch(
+                    e.target.value
+                  )
+                }
                 placeholder="Search students..."
                 className="h-10 pl-9"
               />
@@ -322,150 +769,210 @@ export default function MarksPage() {
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-225">
-              <thead className="sticky top-0 z-10 border-y bg-muted/90 backdrop-blur">
-                <tr>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">
-                    Student ID
-                  </th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">
-                    Student Name
-                  </th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">
-                    Marks / {MAX_MARK}
-                  </th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">
-                    Absent
-                  </th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">
-                    Percentage
-                  </th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">
-                    Grade
-                  </th>
-                  <th className="px-5 py-3 text-left text-sm font-semibold">
-                    Status
-                  </th>
-                </tr>
-              </thead>
+          {loadingMarks ? (
+            <div className="flex items-center justify-center gap-2 p-10 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+              Loading marks...
+            </div>
+          ) : students.length === 0 ? (
+            <div className="p-10 text-center text-sm text-muted-foreground">
+              No students are available
+              for the selected context.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-225">
+                <thead className="sticky top-0 z-10 border-y bg-muted/90 backdrop-blur">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-sm font-semibold">
+                      Student ID
+                    </th>
 
-              <tbody className="divide-y">
-                {filteredStudents.map((student) => {
-                  const numericMark =
-                    student.marks === "" ? null : Number(student.marks)
+                    <th className="px-5 py-3 text-left text-sm font-semibold">
+                      Student Name
+                    </th>
 
-                  const invalid =
-                    numericMark !== null &&
-                    (Number.isNaN(numericMark) ||
-                      numericMark < 0 ||
-                      numericMark > MAX_MARK)
+                    <th className="px-5 py-3 text-left text-sm font-semibold">
+                      Marks / {maxMark}
+                    </th>
 
-                  const percentage =
-                    numericMark !== null && !invalid
-                      ? (numericMark / MAX_MARK) * 100
-                      : null
+                    <th className="px-5 py-3 text-left text-sm font-semibold">
+                      Absent
+                    </th>
 
-                  const grade =
-                    percentage !== null
-                      ? getGrade(percentage)
-                      : "-"
+                    <th className="px-5 py-3 text-left text-sm font-semibold">
+                      Percentage
+                    </th>
 
-                  const passed =
-                    percentage !== null &&
-                    percentage >= PASS_MARK
+                    <th className="px-5 py-3 text-left text-sm font-semibold">
+                      Grade
+                    </th>
 
-                  return (
-                    <tr
-                      key={student.id}
-                      className="transition-colors hover:bg-muted/30"
-                    >
-                      <td className="px-5 py-4 text-sm font-medium">
-                        {student.id}
-                      </td>
+                    <th className="px-5 py-3 text-left text-sm font-semibold">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
 
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-medium">
-                          {student.name}
-                        </span>
-                      </td>
+                <tbody className="divide-y">
+                  {filteredStudents.map(
+                    (student) => {
+                      const numericMark =
+                        student.marks === ""
+                          ? null
+                          : Number(
+                              student.marks
+                            )
 
-                      <td className="px-5 py-4">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={MAX_MARK}
-                          value={student.marks}
-                          disabled={student.absent}
-                          onChange={(e) =>
-                            updateMark(student.id, e.target.value)
+                      const invalid =
+                        numericMark !== null &&
+                        (Number.isNaN(
+                          numericMark
+                        ) ||
+                          numericMark < 0 ||
+                          numericMark >
+                            maxMark)
+
+                      const percentage =
+                        numericMark !== null &&
+                        !invalid
+                          ? (numericMark /
+                              maxMark) *
+                            100
+                          : null
+
+                      const grade =
+                        percentage !== null
+                          ? getGrade(
+                              percentage
+                            )
+                          : "-"
+
+                      const passed =
+                        numericMark !== null &&
+                        !invalid &&
+                        numericMark >=
+                          passMark
+
+                      return (
+                        <tr
+                          key={
+                            student.studentId
                           }
-                          className={
-                            invalid
-                              ? "h-10 w-28 border-destructive focus-visible:ring-destructive"
-                              : "h-10 w-28"
-                          }
-                          aria-label={`Marks for ${student.name}`}
-                        />
+                          className="transition-colors hover:bg-muted/30"
+                        >
+                          <td className="px-5 py-4 text-sm font-medium">
+                            {
+                              student.registrationNo
+                            }
+                          </td>
 
-                        {invalid && (
-                          <p className="mt-1 text-xs text-destructive">
-                            0–{MAX_MARK} only
-                          </p>
-                        )}
-                      </td>
+                          <td className="px-5 py-4">
+                            <span className="text-sm font-medium">
+                              {
+                                student.name
+                              }
+                            </span>
+                          </td>
 
-                      <td className="px-5 py-4">
-                        <input
-                          type="checkbox"
-                          checked={student.absent}
-                          onChange={() => toggleAbsent(student.id)}
-                          className="size-4 accent-primary"
-                          aria-label={`Mark ${student.name} absent`}
-                        />
-                      </td>
+                          <td className="px-5 py-4">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={maxMark}
+                              value={
+                                student.marks
+                              }
+                              disabled={
+                                student.absent
+                              }
+                              onChange={(e) =>
+                                updateMark(
+                                  student.studentId,
+                                  e.target
+                                    .value
+                                )
+                              }
+                              className={
+                                invalid
+                                  ? "h-10 w-28 border-destructive focus-visible:ring-destructive"
+                                  : "h-10 w-28"
+                              }
+                            />
 
-                      <td className="px-5 py-4 text-sm">
-                        {student.absent
-                          ? "Absent"
-                          : percentage !== null
-                            ? `${percentage.toFixed(1)}%`
-                            : "-"}
-                      </td>
+                            {invalid && (
+                              <p className="mt-1 text-xs text-destructive">
+                                0–
+                                {maxMark}{" "}
+                                only
+                              </p>
+                            )}
+                          </td>
 
-                      <td className="px-5 py-4 text-sm font-medium">
-                        {student.absent ? "-" : grade}
-                      </td>
+                          <td className="px-5 py-4">
+                            <input
+                              type="checkbox"
+                              checked={
+                                student.absent
+                              }
+                              onChange={() =>
+                                toggleAbsent(
+                                  student.studentId
+                                )
+                              }
+                              className="size-4 accent-primary"
+                            />
+                          </td>
 
-                      <td className="px-5 py-4">
-                        {student.absent ? (
-                          <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                            Absent
-                          </span>
-                        ) : percentage === null ? (
-                          <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
-                            Missing
-                          </span>
-                        ) : invalid ? (
-                          <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
-                            Invalid
-                          </span>
-                        ) : passed ? (
-                          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
-                            Pass
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
-                            Fail
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                          <td className="px-5 py-4 text-sm">
+                            {student.absent
+                              ? "Absent"
+                              : percentage !==
+                                  null
+                                ? `${percentage.toFixed(
+                                    1
+                                  )}%`
+                                : "-"}
+                          </td>
+
+                          <td className="px-5 py-4 text-sm font-medium">
+                            {student.absent
+                              ? "-"
+                              : grade}
+                          </td>
+
+                          <td className="px-5 py-4">
+                            {student.absent ? (
+                              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                Absent
+                              </span>
+                            ) : percentage ===
+                              null ? (
+                              <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                                Missing
+                              </span>
+                            ) : invalid ? (
+                              <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                                Invalid
+                              </span>
+                            ) : passed ? (
+                              <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
+                                Pass
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                                Fail
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    }
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
