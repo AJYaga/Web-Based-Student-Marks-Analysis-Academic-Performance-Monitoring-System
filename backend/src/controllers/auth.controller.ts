@@ -5,15 +5,54 @@ import { prisma } from "../config/prisma.js"
 import { generateToken } from "../utils/jwt.js"
 import type { AuthenticatedRequest } from "../middleware/auth.middleware.js"
 
+import crypto from "crypto"
+
+import {
+  sendPasswordResetEmail,
+} from "../services/password-reset-mail.service.js"
+
 const COOKIE_NAME = "eduinsight_token"
 
-function setAuthCookie(res: Response, token: string) {
-  res.cookie(COOKIE_NAME, token, {
+function setAuthCookie(
+  res: Response,
+  token: string,
+  rememberMe: boolean
+) {
+  const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  })
+    secure:
+      process.env.NODE_ENV ===
+      "production",
+    sameSite:
+      "lax" as const,
+    path: "/",
+  }
+
+  if (rememberMe) {
+    res.cookie(
+      COOKIE_NAME,
+      token,
+      {
+        ...options,
+        maxAge:
+          30 *
+          24 *
+          60 *
+          60 *
+          1000,
+      }
+    )
+
+    return
+  }
+
+  // Session cookie:
+  // deliberately no maxAge/expires
+  res.cookie(
+    COOKIE_NAME,
+    token,
+    options
+  )
 }
 
 export async function register(req: Request, res: Response) {
@@ -75,9 +114,14 @@ export async function register(req: Request, res: Response) {
     const token = generateToken({
       teacherId: teacher.id,
       email: teacher.email,
+      rememberMe: false,
     })
 
-    setAuthCookie(res, token)
+    setAuthCookie(
+      res,
+      token,
+      false
+    )
 
     return res.status(201).json({
       success: true,
@@ -96,7 +140,11 @@ export async function register(req: Request, res: Response) {
 
 export async function login(req: Request, res: Response) {
   try {
-    const { email, password } = req.body
+    const {
+      email,
+      password,
+      rememberMe = false,
+    } = req.body
 
     if (!email?.trim() || !password) {
       return res.status(400).json({
@@ -132,21 +180,35 @@ export async function login(req: Request, res: Response) {
       })
     }
 
+    const shouldRemember =
+      rememberMe === true
+
     const token = generateToken({
       teacherId: teacher.id,
       email: teacher.email,
+      rememberMe:
+        shouldRemember,
     })
 
-    setAuthCookie(res, token)
+    setAuthCookie(
+      res,
+      token,
+      shouldRemember
+    )
 
     return res.json({
       success: true,
-      message: "Login successful",
+      message:
+        "Login successful",
+
       teacher: {
         id: teacher.id,
         name: teacher.name,
         email: teacher.email,
       },
+
+      rememberMe:
+        shouldRemember,
     })
   } catch (error) {
     console.error("Login error:", error)
@@ -216,4 +278,291 @@ export function logout(_req: Request, res: Response) {
     success: true,
     message: "Logged out successfully",
   })
+}
+
+export async function forgotPassword(
+  req: Request,
+  res: Response
+) {
+  try {
+    const { email } = req.body
+
+    if (!email?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Email address is required",
+      })
+    }
+
+    const normalizedEmail =
+      email.trim().toLowerCase()
+
+    const genericMessage =
+      "If an account exists for this email, a password reset link has been sent."
+
+    const teacher =
+      await prisma.teacher.findUnique({
+        where: {
+          email: normalizedEmail,
+        },
+      })
+
+    if (!teacher) {
+      return res.json({
+        success: true,
+        message: genericMessage,
+      })
+    }
+
+    // Invalidate previous unused reset tokens
+    await prisma.passwordResetToken.deleteMany({
+      where: {
+        teacherId: teacher.id,
+        usedAt: null,
+      },
+    })
+
+    const rawToken =
+      crypto.randomBytes(32).toString("hex")
+
+    const tokenHash =
+      crypto
+        .createHash("sha256")
+        .update(rawToken)
+        .digest("hex")
+
+    const expiresAt =
+      new Date(
+        Date.now() +
+          30 * 60 * 1000
+      )
+
+    await prisma.passwordResetToken.create({
+      data: {
+        tokenHash,
+        expiresAt,
+        teacherId: teacher.id,
+      },
+    })
+
+    const frontendUrl =
+      process.env.FRONTEND_URL ||
+      "http://localhost:3000"
+
+    const resetUrl =
+      `${frontendUrl}/reset-password?token=${encodeURIComponent(
+        rawToken
+      )}`
+
+    try {
+      await sendPasswordResetEmail({
+        email: teacher.email,
+        teacherName: teacher.name,
+        resetUrl,
+      })
+    } catch (mailError) {
+      console.error(
+        "Password reset email error:",
+        mailError
+      )
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to send the password reset email. Please try again later.",
+      })
+    }
+
+    return res.json({
+      success: true,
+      message: genericMessage,
+    })
+  } catch (error) {
+    console.error(
+      "Forgot password error:",
+      error
+    )
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to process password reset request",
+    })
+  }
+}
+
+export async function validateResetToken(
+  req: Request,
+  res: Response
+) {
+  try {
+    const token =
+      typeof req.query.token === "string"
+        ? req.query.token
+        : ""
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Password reset token is required",
+      })
+    }
+
+    const tokenHash =
+      crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex")
+
+    const resetToken =
+      await prisma.passwordResetToken.findUnique({
+        where: {
+          tokenHash,
+        },
+      })
+
+    if (
+      !resetToken ||
+      resetToken.usedAt ||
+      resetToken.expiresAt <
+        new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This password reset link is invalid or has expired.",
+      })
+    }
+
+    return res.json({
+      success: true,
+      message:
+        "Password reset link is valid",
+    })
+  } catch (error) {
+    console.error(
+      "Validate reset token error:",
+      error
+    )
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to validate password reset link",
+    })
+  }
+}
+
+export async function resetPassword(
+  req: Request,
+  res: Response
+) {
+  try {
+    const {
+      token,
+      password,
+    } = req.body
+
+    if (!token || !password) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Reset token and new password are required",
+      })
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Password must contain at least 8 characters",
+      })
+    }
+
+    const tokenHash =
+      crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex")
+
+    const resetToken =
+      await prisma.passwordResetToken.findUnique({
+        where: {
+          tokenHash,
+        },
+      })
+
+    if (
+      !resetToken ||
+      resetToken.usedAt ||
+      resetToken.expiresAt <
+        new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This password reset link is invalid or has expired.",
+      })
+    }
+
+    const passwordHash =
+      await bcrypt.hash(
+        password,
+        12
+      )
+
+    await prisma.$transaction(
+      async (transaction) => {
+        await transaction.teacher.update({
+          where: {
+            id: resetToken.teacherId,
+          },
+
+          data: {
+            passwordHash,
+          },
+        })
+
+        await transaction.passwordResetToken.update({
+          where: {
+            id: resetToken.id,
+          },
+
+          data: {
+            usedAt: new Date(),
+          },
+        })
+
+        await transaction.passwordResetToken.deleteMany({
+          where: {
+            teacherId:
+              resetToken.teacherId,
+
+            NOT: {
+              id: resetToken.id,
+            },
+          },
+        })
+      }
+    )
+
+    return res.json({
+      success: true,
+      message:
+        "Password reset successfully",
+    })
+  } catch (error) {
+    console.error(
+      "Reset password error:",
+      error
+    )
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to reset password",
+    })
+  }
 }

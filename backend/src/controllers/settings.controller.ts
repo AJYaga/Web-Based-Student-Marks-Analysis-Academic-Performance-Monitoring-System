@@ -4,6 +4,162 @@ import bcrypt from "bcrypt"
 import { prisma } from "../config/prisma.js"
 import type { AuthenticatedRequest } from "../middleware/auth.middleware.js"
 
+import {
+  generateToken,
+} from "../utils/jwt.js"
+
+const COOKIE_NAME =
+  "eduinsight_token"
+
+function setSessionCookie(
+  res: Response,
+  token: string,
+  rememberMe: boolean
+) {
+  const options = {
+    httpOnly: true,
+    secure:
+      process.env.NODE_ENV ===
+      "production",
+    sameSite:
+      "lax" as const,
+    path: "/",
+  }
+
+  if (rememberMe) {
+    res.cookie(
+      COOKIE_NAME,
+      token,
+      {
+        ...options,
+        maxAge:
+          30 *
+          24 *
+          60 *
+          60 *
+          1000,
+      }
+    )
+
+    return
+  }
+
+  res.cookie(
+    COOKIE_NAME,
+    token,
+    options
+  )
+}
+
+export function getSessionPreference(
+  req: AuthenticatedRequest,
+  res: Response
+) {
+  if (!req.teacher) {
+    return res.status(401).json({
+      success: false,
+      message:
+        "Authentication required",
+    })
+  }
+
+  return res.json({
+    success: true,
+    rememberMe:
+      req.teacher.rememberMe,
+  })
+}
+
+export async function updateSessionPreference(
+  req: AuthenticatedRequest,
+  res: Response
+) {
+  try {
+    const teacher =
+      req.teacher
+
+    if (!teacher) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Authentication required",
+      })
+    }
+
+    const {
+      rememberMe,
+    } = req.body
+
+    if (
+      typeof rememberMe !==
+      "boolean"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Remember me preference must be true or false",
+      })
+    }
+
+    const account =
+      await prisma.teacher.findUnique({
+        where: {
+          id: teacher.teacherId,
+        },
+
+        select: {
+          id: true,
+          email: true,
+        },
+      })
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Teacher not found",
+      })
+    }
+
+    const token =
+      generateToken({
+        teacherId:
+          account.id,
+
+        email:
+          account.email,
+
+        rememberMe,
+      })
+
+    setSessionCookie(
+      res,
+      token,
+      rememberMe
+    )
+
+    return res.json({
+      success: true,
+      message:
+        rememberMe
+          ? "This device will now keep you signed in."
+          : "Remember me has been disabled for this device.",
+      rememberMe,
+    })
+  } catch (error) {
+    console.error(
+      "Update session preference error:",
+      error
+    )
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to update login preference",
+    })
+  }
+}
+
 export async function getProfile(
   req: AuthenticatedRequest,
   res: Response

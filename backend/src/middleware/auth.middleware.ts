@@ -1,13 +1,21 @@
-import type { NextFunction, Request, Response } from "express"
+import type {
+  NextFunction,
+  Request,
+  Response,
+} from "express"
 
-import { verifyToken } from "../utils/jwt.js"
+import {
+  verifyToken,
+} from "../utils/jwt.js"
 
-export type AuthenticatedRequest = Request & {
-  teacher?: {
-    teacherId: string
-    email: string
+export type AuthenticatedRequest =
+  Request & {
+    teacher?: {
+      teacherId: string
+      email: string
+      rememberMe: boolean
+    }
   }
-}
 
 export function requireAuth(
   req: AuthenticatedRequest,
@@ -17,27 +25,39 @@ export function requireAuth(
   try {
     const token =
       req.cookies?.eduinsight_token ||
-      req.headers.authorization?.replace("Bearer ", "")
+      req.headers.authorization?.replace(
+        "Bearer ",
+        ""
+      )
 
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required",
+        message:
+          "Authentication required",
       })
     }
 
-    const payload = verifyToken(token)
+    const payload =
+      verifyToken(token)
 
     req.teacher = {
-      teacherId: payload.teacherId,
-      email: payload.email,
+      teacherId:
+        payload.teacherId,
+
+      email:
+        payload.email,
+
+      rememberMe:
+        payload.rememberMe === true,
     }
 
     next()
   } catch {
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired session",
+      message:
+        "Invalid or expired session",
     })
   }
 }

@@ -1,11 +1,10 @@
 "use client"
  
 import { useState, useEffect, useRef } from "react"
-import { Search, User, LogOut } from "lucide-react"
+import { User, LogOut } from "lucide-react"
  
 import { ThemeToggle } from "@/components/common/theme-toggle"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
 import { useRouter } from "next/navigation"
@@ -118,20 +117,6 @@ export function AppHeader() {
         <p className="hidden truncate text-sm text-muted-foreground sm:block">
           Academic Performance Monitoring
 </p>
-</div>
- 
-      {/* Search */}
-<div className="hidden w-full max-w-xs md:block">
-<div className="relative">
-<Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
- 
-          <Input
-            type="search"
-            placeholder="Search..."
-            className="h-9 bg-background/70 pl-9"
-            aria-label="Search EduInsight"
-          />
-</div>
 </div>
  
       {/* Theme Toggle */}

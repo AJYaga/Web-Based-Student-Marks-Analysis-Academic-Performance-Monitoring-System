@@ -58,7 +58,8 @@ export const ModelName = {
   ClassSubject: 'ClassSubject',
   Examination: 'Examination',
   ExaminationSubject: 'ExaminationSubject',
-  Mark: 'Mark'
+  Mark: 'Mark',
+  PasswordResetToken: 'PasswordResetToken'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -183,6 +184,18 @@ export const MarkScalarFieldEnum = {
 } as const
 
 export type MarkScalarFieldEnum = (typeof MarkScalarFieldEnum)[keyof typeof MarkScalarFieldEnum]
+
+
+export const PasswordResetTokenScalarFieldEnum = {
+  id: 'id',
+  tokenHash: 'tokenHash',
+  expiresAt: 'expiresAt',
+  usedAt: 'usedAt',
+  teacherId: 'teacherId',
+  createdAt: 'createdAt'
+} as const
+
+export type PasswordResetTokenScalarFieldEnum = (typeof PasswordResetTokenScalarFieldEnum)[keyof typeof PasswordResetTokenScalarFieldEnum]
 
 
 export const SortOrder = {

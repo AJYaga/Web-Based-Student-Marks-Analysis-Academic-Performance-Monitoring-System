@@ -21,7 +21,9 @@ import { useTheme } from "next-themes"
 import {
   changePassword,
   getProfile,
+  getSessionPreference,
   updateProfile,
+  updateSessionPreference,
 } from "@/services/settings"
 
 import { Button } from "@/components/ui/button"
@@ -92,6 +94,16 @@ export default function SettingsPage() {
 
   const [success, setSuccess] =
     useState("")
+  
+  const [
+    rememberMe,
+    setRememberMe,
+  ] = useState(false)
+
+  const [
+    changingSessionPreference,
+    setChangingSessionPreference,
+  ] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -101,6 +113,9 @@ export default function SettingsPage() {
         const response =
           await getProfile()
 
+        const sessionResponse =
+          await getSessionPreference()
+
         if (cancelled) return
 
         setName(
@@ -109,6 +124,10 @@ export default function SettingsPage() {
 
         setEmail(
           response.teacher.email
+        )
+
+        setRememberMe(
+          sessionResponse.rememberMe
         )
       } catch (error) {
         if (cancelled) return
@@ -177,6 +196,42 @@ export default function SettingsPage() {
       )
     } finally {
       setSavingProfile(false)
+    }
+  }
+
+  async function handleRememberMeChange(
+    checked: boolean
+  ) {
+    try {
+      setChangingSessionPreference(
+        true
+      )
+
+      setError("")
+      setSuccess("")
+
+      const response =
+        await updateSessionPreference(
+          checked
+        )
+
+      setRememberMe(
+        response.rememberMe
+      )
+
+      setSuccess(
+        response.message
+      )
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to update login preference."
+      )
+    } finally {
+      setChangingSessionPreference(
+        false
+      )
     }
   }
 
@@ -439,6 +494,43 @@ export default function SettingsPage() {
             Security
           </CardTitle>
         </CardHeader>
+
+        <div className="rounded-xl border bg-muted/20 p-4">
+          <div className="flex items-start gap-3">
+            <input
+              id="remember-device"
+              type="checkbox"
+              checked={rememberMe}
+              disabled={
+                changingSessionPreference
+              }
+              onChange={(event) =>
+                void handleRememberMeChange(
+                  event.target.checked
+                )
+              }
+              className="mt-1 size-4 rounded border-border accent-primary"
+            />
+
+            <div className="space-y-1">
+              <label
+                htmlFor="remember-device"
+                className="cursor-pointer text-sm font-medium"
+              >
+                Keep me signed in on this device
+              </label>
+
+              <p className="text-sm text-muted-foreground">
+                When enabled, EduInsight can keep you
+                signed in on this device for up to
+                30 days. Disable it when using a shared
+                or public computer.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t" />
 
         <CardContent className="max-w-xl space-y-4">
           <div className="space-y-2">

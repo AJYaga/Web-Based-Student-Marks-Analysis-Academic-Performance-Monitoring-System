@@ -72,3 +72,26 @@ export function changePassword(data: {
     body: JSON.stringify(data),
   })
 }
+
+export function getSessionPreference() {
+  return request<{
+    success: boolean
+    rememberMe: boolean
+  }>("/settings/session")
+}
+
+export function updateSessionPreference(
+  rememberMe: boolean
+) {
+  return request<{
+    success: boolean
+    message: string
+    rememberMe: boolean
+  }>("/settings/session", {
+    method: "PUT",
+
+    body: JSON.stringify({
+      rememberMe,
+    }),
+  })
+}

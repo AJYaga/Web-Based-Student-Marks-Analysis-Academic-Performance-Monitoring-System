@@ -36,6 +36,7 @@ model Teacher {
   name         String
   email        String @unique
   passwordHash String
+  passwordResetTokens PasswordResetToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -194,4 +195,19 @@ model Mark {
   @@index([studentId])
   @@index([subjectId])
   @@index([examinationId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([teacherId])
+  @@index([expiresAt])
 }

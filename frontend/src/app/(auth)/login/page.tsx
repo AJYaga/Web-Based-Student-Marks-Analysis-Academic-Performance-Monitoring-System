@@ -23,6 +23,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [
+    rememberMe,
+    setRememberMe,
+  ] = useState(false)
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>
@@ -46,6 +50,7 @@ export default function LoginPage() {
       await loginTeacher({
         email,
         password,
+        rememberMe,
       })
 
       router.push("/dashboard")
@@ -135,6 +140,13 @@ export default function LoginPage() {
             <input
               id="remember"
               type="checkbox"
+              checked={rememberMe}
+              onChange={(event) =>
+                setRememberMe(
+                  event.target.checked
+                )
+              }
+              disabled={loading}
               className="size-4 rounded border-border accent-primary"
             />
 

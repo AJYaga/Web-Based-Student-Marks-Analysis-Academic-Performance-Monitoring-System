@@ -81,3 +81,8 @@ export type ExaminationSubject = Prisma.ExaminationSubjectModel
  * 
  */
 export type Mark = Prisma.MarkModel
+/**
+ * Model PasswordResetToken
+ * 
+ */
+export type PasswordResetToken = Prisma.PasswordResetTokenModel

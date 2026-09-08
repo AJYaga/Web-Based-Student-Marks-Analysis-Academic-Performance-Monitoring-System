@@ -70,6 +70,7 @@ export function registerTeacher(data: {
 export function loginTeacher(data: {
   email: string
   password: string
+  rememberMe: boolean
 }) {
   return request<AuthResponse>("/auth/login", {
     method: "POST",
@@ -84,5 +85,30 @@ export function getCurrentTeacher() {
 export function logoutTeacher() {
   return request<AuthResponse>("/auth/logout", {
     method: "POST",
+  })
+}
+
+export function forgotPassword(data: {
+  email: string
+}) {
+  return request<AuthResponse>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export function validateResetToken(token: string) {
+  return request<AuthResponse>(
+    `/auth/reset-password/validate?token=${encodeURIComponent(token)}`
+  )
+}
+
+export function resetPassword(data: {
+  token: string
+  password: string
+}) {
+  return request<AuthResponse>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(data),
   })
 }
