@@ -1151,11 +1151,15 @@ export default function ReportsPage() {
       <Card className="glass">
         <CardContent className="grid gap-4 p-5 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label
+              htmlFor="report-student"
+              className="text-sm font-medium"
+            >
               Student
             </label>
 
             <select
+              id="report-student"
               value={studentId}
               onChange={(e) =>
                 handleStudentChange(
@@ -1163,6 +1167,11 @@ export default function ReportsPage() {
                 )
               }
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
+              disabled={
+                loadingReport ||
+                exportingPdf ||
+                printingPdf
+              }
             >
               {students.length === 0 ? (
                 <option value="">
@@ -1187,11 +1196,15 @@ export default function ReportsPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label
+              htmlFor="report-examination"
+              className="text-sm font-medium"
+            >
               Examination
             </label>
 
             <select
+              id="report-examination"
               value={examinationId}
               onChange={(e) =>
                 handleExamChange(
@@ -1200,8 +1213,10 @@ export default function ReportsPage() {
               }
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
               disabled={
-                availableExaminations.length ===
-                0
+                availableExaminations.length === 0 ||
+                loadingReport ||
+                exportingPdf ||
+                printingPdf
               }
             >
               {availableExaminations.length ===
@@ -1247,7 +1262,10 @@ export default function ReportsPage() {
           >
             <CardHeader className="border-b text-center">
               <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <FileText className="size-6" />
+                <FileText 
+                  aria-hidden="true"
+                  className="size-6" 
+                />
               </div>
 
               <CardTitle className="text-2xl">
@@ -1316,8 +1334,8 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-xl border">
-                <table className="w-full">
+              <div className="overflow-x-auto overscroll-x-contain rounded-xl border">
+                <table className="w-full min-w-162.5">
                   <thead className="bg-muted/50">
                     <tr>
                       <th className="px-4 py-3 text-left">
@@ -1356,7 +1374,7 @@ export default function ReportsPage() {
                             }
                           </td>
 
-                          <td className="px-4 py-3">
+                          <td className="whitespace-nowrap px-4 py-3">
                             {result.isAbsent
                               ? "Absent"
                               : result.marksObtained ===
@@ -1365,7 +1383,7 @@ export default function ReportsPage() {
                                 : `${result.marksObtained} / ${result.maxMark}`}
                           </td>
 
-                          <td className="px-4 py-3">
+                          <td className="whitespace-nowrap px-4 py-3">
                             {result.isAbsent
                               ? "-"
                               : result.percentage ===
@@ -1376,14 +1394,14 @@ export default function ReportsPage() {
                                   )}%`}
                           </td>
 
-                          <td className="px-4 py-3">
+                          <td className="whitespace-nowrap px-4 py-3">
                             {
                               result.grade ??
                               "-"
                             }
                           </td>
 
-                          <td className="px-4 py-3">
+                          <td className="whitespace-nowrap px-4 py-3">
                             {!result.entered
                               ? "Not Entered"
                               : result.isAbsent
@@ -1466,10 +1484,10 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
 
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
             <Button
               variant="outline"
-              className="gap-2"
+              className="w-full gap-2 sm:w-auto"
               onClick={handlePrintPdf}
               disabled={
                 printingPdf ||
@@ -1479,7 +1497,10 @@ export default function ReportsPage() {
               {printingPdf ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
-                <Printer className="size-4" />
+                <Printer 
+                  aria-hidden="true"
+                  className="size-4" 
+                />
               )}
 
               {printingPdf
@@ -1488,7 +1509,7 @@ export default function ReportsPage() {
             </Button>
 
             <Button
-              className="gap-2"
+              className="w-full gap-2 sm:w-auto"
               onClick={handleExportPdf}
               disabled={
                 exportingPdf ||
@@ -1498,7 +1519,10 @@ export default function ReportsPage() {
               {exportingPdf ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
-                <Download className="size-4" />
+                <Download 
+                  aria-hidden="true"
+                  className="size-4" 
+                />
               )}
 
               {exportingPdf

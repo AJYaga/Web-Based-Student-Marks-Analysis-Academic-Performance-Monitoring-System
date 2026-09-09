@@ -227,6 +227,10 @@ export default function SubjectsPage() {
   }
 
   async function saveSubject() {
+    if (saving) {
+      return
+    }
+    
     if (
       !code.trim() ||
       !name.trim() ||
@@ -315,6 +319,10 @@ export default function SubjectsPage() {
   }
 
   async function confirmDelete() {
+    if (deleting) {
+      return
+    }
+    
     if (!deleteId) return
 
     try {
@@ -371,7 +379,9 @@ export default function SubjectsPage() {
         <Button
           className="gap-2"
           disabled={
-            classes.length === 0
+            classes.length === 0 ||
+            saving ||
+            deleting
           }
           onClick={() => {
             resetForm()
@@ -428,74 +438,127 @@ export default function SubjectsPage() {
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="grid gap-4 md:grid-cols-4">
-            <Input
-              placeholder="Subject code"
-              value={code}
-              onChange={(e) =>
-                setCode(e.target.value)
-              }
-              className="h-11"
-              disabled={saving}
-            />
-
-            <Input
-              placeholder="Subject name"
-              value={name}
-              onChange={(e) =>
-                setName(e.target.value)
-              }
-              className="h-11"
-              disabled={saving}
-            />
-
-            <select
-              value={classId}
-              onChange={(e) =>
-                setClassId(e.target.value)
-              }
-              className="h-11 rounded-lg border border-input bg-background px-3"
-              disabled={saving}
+          <CardContent>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                void saveSubject()
+              }}
+              className="grid gap-4 md:grid-cols-4"
             >
-              {classes.map((item) => (
-                <option
-                  key={item.id}
-                  value={item.id}
-                >
-                  {item.name} —{" "}
-                  {item.academicYear}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-2">
+              <label
+                htmlFor="subject-code"
+                className="text-sm font-medium"
+              >
+                Subject Code
+              </label>
 
-            <Input
-              type="number"
-              min={1}
-              placeholder="Maximum mark"
-              value={maxMark}
-              onChange={(e) =>
-                setMaxMark(e.target.value)
-              }
-              className="h-11"
-              disabled={saving}
-            />
+              <Input
+                id="subject-code"
+                placeholder="Subject code"
+                value={code}
+                onChange={(e) =>
+                  setCode(e.target.value)
+                }
+                className="h-11"
+                disabled={saving}
+              />
+            </div>
 
-            <div className="flex gap-3 md:col-span-4">
+            <div className="space-y-2">
+              <label
+                htmlFor="subject-name"
+                className="text-sm font-medium"
+              >
+                Subject Name
+              </label>
+
+              <Input
+                id="subject-name"
+                placeholder="Subject name"
+                value={name}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
+                className="h-11"
+                disabled={saving}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="subject-class"
+                className="text-sm font-medium"
+              >
+                Class
+              </label>
+
+              <select
+                id="subject-class"
+                value={classId}
+                onChange={(e) =>
+                  setClassId(e.target.value)
+                }
+                className="h-11 w-full rounded-lg border border-input bg-background px-3"
+                disabled={saving}
+              >
+                {classes.map((item) => (
+                  <option
+                    key={item.id}
+                    value={item.id}
+                  >
+                    {item.name} — {item.academicYear}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="subject-max-mark"
+                className="text-sm font-medium"
+              >
+                Maximum Mark
+              </label>
+
+              <Input
+                id="subject-max-mark"
+                type="number"
+                min={1}
+                placeholder="Maximum mark"
+                value={maxMark}
+                onChange={(e) =>
+                  setMaxMark(e.target.value)
+                }
+                className="h-11"
+                disabled={saving}
+              />
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row md:col-span-4">
               <Button
-                onClick={saveSubject}
+                type="submit"
+                className="w-full sm:w-auto"
                 disabled={saving}
               >
                 {saving && (
                   <Loader2 className="mr-2 size-4 animate-spin" />
                 )}
 
-                {editingId
-                  ? "Update Subject"
-                  : "Save Subject"}
+                {saving
+                  ? editingId
+                    ? "Updating..."
+                    : "Saving..."
+                  : editingId
+                    ? "Update Subject"
+                    : "Save Subject"}
               </Button>
 
               <Button
+                type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 disabled={saving}
                 onClick={() => {
                   resetForm()
@@ -505,19 +568,23 @@ export default function SubjectsPage() {
                 Cancel
               </Button>
             </div>
+            </form>
           </CardContent>
         </Card>
       )}
 
       <Card className="glass overflow-hidden">
         <CardHeader>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <CardTitle className="text-lg">
               Subject List
             </CardTitle>
 
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="relative w-full md:max-w-sm">
+              <Search
+                aria-hidden="true"
+                className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              />
 
               <Input
                 value={search}
@@ -527,7 +594,12 @@ export default function SubjectsPage() {
                   )
                 }
                 placeholder="Search subjects..."
+                aria-label="Search subjects"
                 className="pl-9"
+                 disabled={
+                  loading ||
+                  subjects.length === 0
+                }
               />
             </div>
           </div>
@@ -535,18 +607,62 @@ export default function SubjectsPage() {
 
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center gap-2 p-10 text-muted-foreground">
+            <div className="flex min-h-56 items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
               Loading subjects...
             </div>
+          ) : subjects.length === 0 ? (
+            <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
+              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <BookOpen className="size-5" />
+              </div>
+
+              <p className="font-medium">
+                No subjects yet
+              </p>
+
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Add your first subject to begin managing examinations and marks.
+              </p>
+
+              {classes.length > 0 && (
+                <Button
+                  className="mt-4 gap-2"
+                  disabled={saving || deleting}
+                  onClick={() => {
+                    resetForm()
+                    setShowForm(true)
+                  }}
+                >
+                  <Plus className="size-4" />
+                  Add Subject
+                </Button>
+              )}
+            </div>
           ) : filtered.length === 0 ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">
-              No subjects found.
+            <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
+              <Search className="mb-3 size-8 text-muted-foreground" />
+
+              <p className="font-medium">
+                No matching subjects
+              </p>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                No subjects match “{search.trim()}”.
+              </p>
+
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setSearch("")}
+              >
+                Clear Search
+              </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain">
               <table className="w-full min-w-190">
-                <thead className="border-y bg-muted/50">
+                <thead className="sticky top-0 z-10 border-y bg-muted/90 backdrop-blur">
                   <tr>
                     <th className="px-5 py-3 text-left">
                       Code
@@ -568,83 +684,80 @@ export default function SubjectsPage() {
                       Status
                     </th>
 
-                    <th className="px-5 py-3 text-right">
+                    <th className="sticky right-0 z-20 bg-muted/95 px-5 py-3 text-right backdrop-blur">
                       Actions
                     </th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y">
-                  {filtered.map(
-                    (item) => (
-                      <tr
-                        key={item.id}
-                        className="hover:bg-muted/30"
-                      >
-                        <td className="px-5 py-4 font-medium">
-                          <HighlightMatch
-                            text={item.code}
-                            query={search}
-                          />
-                        </td>
+                  {filtered.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="hover:bg-muted/30"
+                    >
+                      <td className="whitespace-nowrap px-5 py-4 font-medium">
+                        <HighlightMatch
+                          text={item.code}
+                          query={search}
+                        />
+                      </td>
 
-                        <td className="px-5 py-4">
-                          <HighlightMatch
-                            text={item.name}
-                            query={search}
-                          />
-                        </td>
+                      <td className="px-5 py-4">
+                        <HighlightMatch
+                          text={item.name}
+                          query={search}
+                        />
+                      </td>
 
-                        <td className="px-5 py-4">
-                          <HighlightMatch
-                            text={item.className}
-                            query={search}
-                          />
-                        </td>
+                      <td className="px-5 py-4">
+                        <HighlightMatch
+                          text={item.className}
+                          query={search}
+                        />
+                      </td>
 
-                        <td className="px-5 py-4">
-                          {item.maxMark}
-                        </td>
+                      <td className="whitespace-nowrap px-5 py-4">
+                        {item.maxMark}
+                      </td>
 
-                        <td className="px-5 py-4">
-                          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
-                            {item.status ===
-                            "ACTIVE"
-                              ? "Active"
-                              : item.status}
-                          </span>
-                        </td>
+                      <td className="whitespace-nowrap px-5 py-4">
+                        <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">
+                          {item.status === "ACTIVE"
+                            ? "Active"
+                            : item.status}
+                        </span>
+                      </td>
 
-                        <td className="px-5 py-4">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                editSubject(
-                                  item
-                                )
-                              }
-                            >
-                              <Pencil className="size-4" />
-                            </Button>
+                      <td className="sticky right-0 z-10 bg-background/95 px-5 py-4 backdrop-blur">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Edit ${item.name}`}
+                            disabled={saving || deleting}
+                            onClick={() =>
+                              editSubject(item)
+                            }
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
 
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                setDeleteId(
-                                  item.id
-                                )
-                              }
-                            >
-                              <Trash2 className="size-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Delete ${item.name}`}
+                            disabled={saving || deleting}
+                            onClick={() =>
+                              setDeleteId(item.id)
+                            }
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

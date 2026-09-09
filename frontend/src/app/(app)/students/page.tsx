@@ -183,6 +183,10 @@ export default function StudentsPage() {
   }
 
   async function handleSave() {
+    if (saving) {
+      return
+    }
+    
     if (
       !studentId.trim() ||
       !studentName.trim() ||
@@ -245,6 +249,10 @@ export default function StudentsPage() {
   }
 
   async function handleDelete() {
+    if (deleting) {
+      return
+    }
+    
     if (!studentToDelete) {
       return
     }
@@ -307,7 +315,11 @@ export default function StudentsPage() {
 
         <Button
           className="h-10 gap-2 self-start lg:self-auto"
-          disabled={classes.length === 0}
+          disabled={
+            classes.length === 0 ||
+            saving ||
+            deleting
+          }
           onClick={() => {
             resetForm()
             setShowForm(true)
@@ -387,13 +399,24 @@ export default function StudentsPage() {
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="grid gap-4 md:grid-cols-3">
+          <CardContent>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                void handleSave()
+              }}
+              className="grid gap-4 md:grid-cols-3"
+            >
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <label
+                htmlFor="student-id"
+                className="text-sm font-medium"
+              >
                 Student ID
               </label>
 
               <Input
+                id="student-id"
                 value={studentId}
                 onChange={(event) =>
                   setStudentId(event.target.value)
@@ -405,11 +428,15 @@ export default function StudentsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <label
+                htmlFor="student-name"
+                className="text-sm font-medium"
+              >
                 Student Name
               </label>
 
               <Input
+                id="student-name"
                 value={studentName}
                 onChange={(event) =>
                   setStudentName(event.target.value)
@@ -421,11 +448,15 @@ export default function StudentsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <label
+                htmlFor="student-class"
+                className="text-sm font-medium"
+              >
                 Class
               </label>
 
               <select
+                id="student-class"
                 value={studentClass}
                 onChange={(event) =>
                   setStudentClass(event.target.value)
@@ -444,22 +475,29 @@ export default function StudentsPage() {
               </select>
             </div>
 
-            <div className="flex gap-3 md:col-span-3">
+            <div className="flex flex-col gap-3 sm:flex-row md:col-span-3">
               <Button
-                onClick={handleSave}
+                type="submit"
+                className="w-full sm:w-auto"
                 disabled={saving}
               >
                 {saving && (
                   <Loader2 className="mr-2 size-4 animate-spin" />
                 )}
 
-                {editingId
-                  ? "Update Student"
-                  : "Save Student"}
+                {saving
+                  ? editingId
+                    ? "Updating..."
+                    : "Saving..."
+                  : editingId
+                    ? "Update Student"
+                    : "Save Student"}
               </Button>
 
               <Button
+                type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 disabled={saving}
                 onClick={() => {
                   resetForm()
@@ -469,6 +507,7 @@ export default function StudentsPage() {
                 Cancel
               </Button>
             </div>
+            </form>
           </CardContent>
         </Card>
       )}
@@ -481,7 +520,10 @@ export default function StudentsPage() {
             </CardTitle>
 
             <div className="relative w-full md:max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              />
 
               <Input
                 value={search}
@@ -489,7 +531,12 @@ export default function StudentsPage() {
                   setSearch(event.target.value)
                 }
                 placeholder="Search students..."
+                aria-label="Search students"
                 className="h-10 pl-9"
+                disabled={
+                  loading ||
+                  students.length === 0
+                }
               />
             </div>
           </div>
@@ -497,14 +544,62 @@ export default function StudentsPage() {
 
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center gap-2 p-10 text-muted-foreground">
+            <div className="flex min-h-56 items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
               Loading students...
             </div>
+          ) : students.length === 0 ? (
+            <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
+              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <UserRound className="size-5" />
+              </div>
+
+              <p className="font-medium">
+                No students yet
+              </p>
+
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Add your first student to begin managing academic records.
+              </p>
+
+              {classes.length > 0 && (
+                <Button
+                  className="mt-4 gap-2"
+                  disabled={saving || deleting}
+                  onClick={() => {
+                    resetForm()
+                    setShowForm(true)
+                  }}
+                >
+                  <Plus className="size-4" />
+                  Add Student
+                </Button>
+              )}
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
+              <Search className="mb-3 size-8 text-muted-foreground" />
+
+              <p className="font-medium">
+                No matching students
+              </p>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                No students match “{search.trim()}”.
+              </p>
+
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setSearch("")}
+              >
+                Clear Search
+              </Button>
+            </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain">
               <table className="w-full min-w-190 text-left">
-                <thead className="border-y bg-muted/50">
+                <thead className="sticky top-0 z-10 border-y bg-muted/90 backdrop-blur">
                   <tr>
                     <th className="px-5 py-3 text-sm font-semibold">
                       Student ID
@@ -526,7 +621,7 @@ export default function StudentsPage() {
                       Status
                     </th>
 
-                    <th className="px-5 py-3 text-right text-sm font-semibold">
+                    <th className="sticky right-0 z-20 bg-muted/95 px-5 py-3 text-right text-sm font-semibold backdrop-blur">
                       Actions
                     </th>
                   </tr>
@@ -538,11 +633,9 @@ export default function StudentsPage() {
                       key={student.id}
                       className="transition-colors hover:bg-muted/30"
                     >
-                      <td className="px-5 py-4 text-sm font-medium">
+                      <td className="whitespace-nowrap px-5 py-4 text-sm font-medium">
                         <HighlightMatch
-                          text={
-                            student.registrationNo
-                          }
+                          text={student.registrationNo}
                           query={search}
                         />
                       </td>
@@ -571,14 +664,18 @@ export default function StudentsPage() {
                         />
                       </td>
 
-                      <td className="px-5 py-4 text-sm">
+                      <td className="whitespace-nowrap px-5 py-4 text-sm">
                         {student.average === null
                           ? "-"
                           : `${student.average.toFixed(1)}%`}
                       </td>
 
-                      <td className="px-5 py-4">
-                        {student.needsAttention ? (
+                      <td className="whitespace-nowrap px-5 py-4">
+                        {student.status !== "ACTIVE" ? (
+                          <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                            Inactive
+                          </span>
+                        ) : student.needsAttention ? (
                           <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
                             Needs Attention
                           </span>
@@ -589,12 +686,13 @@ export default function StudentsPage() {
                         )}
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="sticky right-0 z-10 bg-background/95 px-5 py-4 backdrop-blur">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
                             aria-label={`Edit ${student.name}`}
+                            disabled={saving || deleting}
                             onClick={() =>
                               handleEdit(student)
                             }
@@ -606,6 +704,7 @@ export default function StudentsPage() {
                             variant="ghost"
                             size="icon"
                             aria-label={`Delete ${student.name}`}
+                            disabled={saving || deleting}
                             onClick={() =>
                               setStudentToDelete(
                                 student.id
@@ -618,17 +717,6 @@ export default function StudentsPage() {
                       </td>
                     </tr>
                   ))}
-
-                  {filteredStudents.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="px-5 py-12 text-center text-sm text-muted-foreground"
-                      >
-                        No students found.
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>

@@ -370,6 +370,10 @@ export default function MarksPage() {
   }
 
   async function handleSave() {
+    if (saving || loadingMarks) {
+      return
+    }
+    
     if (
       !classId ||
       !examId ||
@@ -479,23 +483,33 @@ export default function MarksPage() {
 
         <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <p
+              id="academic-year-label"
+              className="text-sm font-medium"
+            >
               Academic Year
-            </label>
+            </p>
 
-            <div className="flex h-11 items-center rounded-lg border border-input bg-muted/30 px-3 text-sm">
+            <div
+              aria-labelledby="academic-year-label"
+              className="flex h-11 items-center rounded-lg border border-input bg-muted/30 px-3 text-sm"
+            >
               {selectedClass?.academicYear ??
                 "-"}
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label
+              htmlFor="marks-class"
+              className="text-sm font-medium"
+            >
               Class
             </label>
 
             <select
               value={classId}
+              id="marks-class"
               onChange={(e) => {
                 const nextClassId =
                   e.target.value
@@ -518,7 +532,11 @@ export default function MarksPage() {
                 setError("")
               }}
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
-              disabled={loading}
+              disabled={
+                loading ||
+                loadingMarks ||
+                saving
+              }
             >
               {classes.map((item) => (
                 <option
@@ -532,12 +550,16 @@ export default function MarksPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label
+              htmlFor="marks-examination"
+              className="text-sm font-medium"
+            >
               Examination
             </label>
 
             <select
               value={examId}
+              id="marks-examination"
               onChange={(e) => {
                 const nextExamId =
                   e.target.value
@@ -560,8 +582,9 @@ export default function MarksPage() {
               }}
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
               disabled={
-                classExaminations.length ===
-                0
+                classExaminations.length === 0 ||
+                loadingMarks ||
+                saving
               }
             >
               {classExaminations.length ===
@@ -585,12 +608,16 @@ export default function MarksPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label
+              htmlFor="marks-subject"
+              className="text-sm font-medium"
+            >
               Subject
             </label>
 
             <select
               value={subjectId}
+              id="marks-subject"
               onChange={(e) => {
                 setSubjectId(e.target.value)
 
@@ -600,8 +627,9 @@ export default function MarksPage() {
               }}
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
               disabled={
-                availableSubjects.length ===
-                0
+                availableSubjects.length === 0 ||
+                loadingMarks ||
+                saving
               }
             >
               {availableSubjects.length ===
@@ -630,7 +658,10 @@ export default function MarksPage() {
         <Card className="glass">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <ClipboardPenLine className="size-5" />
+              <ClipboardPenLine
+                aria-hidden="true"
+                className="size-5"
+              />
             </div>
 
             <div>
@@ -648,7 +679,10 @@ export default function MarksPage() {
         <Card className="glass">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="flex size-11 items-center justify-center rounded-xl bg-secondary text-secondary-foreground">
-              <CheckCircle2 className="size-5" />
+              <CheckCircle2
+                aria-hidden="true"
+                className="size-5"
+              />
             </div>
 
             <div>
@@ -666,12 +700,15 @@ export default function MarksPage() {
         <Card className="glass">
           <CardContent className="flex items-center gap-4 p-5">
             <div className="flex size-11 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
-              <TriangleAlert className="size-5" />
+              <TriangleAlert
+                aria-hidden="true"
+                className="size-5"
+              />
             </div>
 
             <div>
               <p className="text-sm text-muted-foreground">
-                Missing / Invalid
+                Missing or Invalid
               </p>
 
               <p className="text-2xl font-semibold">
@@ -687,7 +724,10 @@ export default function MarksPage() {
         invalidCount > 0) &&
         students.length > 0 && (
           <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+            <TriangleAlert
+              aria-hidden="true"
+              className="mt-0.5 size-4 shrink-0"
+            />
 
             <div>
               <p className="font-medium">
@@ -696,10 +736,14 @@ export default function MarksPage() {
 
               <p className="mt-0.5">
                 {missingCount > 0 &&
-                  `${missingCount} missing mark(s). `}
+                  `${missingCount} ${missingCount === 1 ? "mark is" : "marks are"} missing.`}
+
+                {missingCount > 0 &&
+                  invalidCount > 0 &&
+                  " "}
 
                 {invalidCount > 0 &&
-                  `${invalidCount} invalid mark(s).`}
+                  `${invalidCount} ${invalidCount === 1 ? "mark is" : "marks are"} invalid.`}
               </p>
             </div>
           </div>
@@ -721,7 +765,10 @@ export default function MarksPage() {
             </div>
 
             <div className="relative w-full md:max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              />
 
               <Input
                 value={search}
@@ -731,7 +778,13 @@ export default function MarksPage() {
                   )
                 }
                 placeholder="Search students..."
+                aria-label="Search students"
                 className="h-10 pl-9"
+                disabled={
+                  loadingMarks ||
+                  saving ||
+                  students.length === 0
+                }
               />
             </div>
           </div>
@@ -739,25 +792,57 @@ export default function MarksPage() {
 
         <CardContent className="p-0">
           {loadingMarks ? (
-            <div className="flex items-center justify-center gap-2 p-10 text-muted-foreground">
+            <div className="flex min-h-56 items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
               Loading marks...
             </div>
           ) : students.length === 0 ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">
-              No students are available
-              for the selected context.
+            <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
+              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <ClipboardPenLine
+                  aria-hidden="true"
+                  className="size-5"
+                />
+              </div>
+
+              <p className="font-medium">
+                No students available
+              </p>
+
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                No students are available for the selected examination context.
+              </p>
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
+              <Search className="mb-3 size-8 text-muted-foreground" />
+
+              <p className="font-medium">
+                No matching students
+              </p>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                No students match “{search.trim()}”.
+              </p>
+
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setSearch("")}
+              >
+                Clear Search
+              </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain">
               <table className="w-full min-w-225">
                 <thead className="sticky top-0 z-10 border-y bg-muted/90 backdrop-blur">
                   <tr>
-                    <th className="px-5 py-3 text-left text-sm font-semibold">
+                    <th className="sticky left-0 z-20 w-32 min-w-32 bg-muted/95 px-5 py-3 text-left text-sm font-semibold backdrop-blur">
                       Student ID
                     </th>
 
-                    <th className="px-5 py-3 text-left text-sm font-semibold">
+                    <th className="sticky left-32 z-20 min-w-48 bg-muted/95 px-5 py-3 text-left text-sm font-semibold backdrop-blur">
                       Student Name
                     </th>
 
@@ -789,55 +874,46 @@ export default function MarksPage() {
                       const numericMark =
                         student.marks === ""
                           ? null
-                          : Number(
-                              student.marks
-                            )
+                          : Number(student.marks)
 
                       const invalid =
                         numericMark !== null &&
-                        (Number.isNaN(
-                          numericMark
-                        ) ||
+                        (Number.isNaN(numericMark) ||
                           numericMark < 0 ||
-                          numericMark >
-                            maxMark)
+                          numericMark > maxMark)
+
+                      const markErrorId =
+                        `mark-error-${student.studentId}`
 
                       const percentage =
                         numericMark !== null &&
                         !invalid
-                          ? (numericMark /
-                              maxMark) *
-                            100
+                          ? (numericMark / maxMark) * 100
                           : null
 
                       const grade =
                         percentage !== null
-                          ? getGrade(
-                              percentage
-                            )
+                          ? getGrade(percentage)
                           : "-"
 
                       const passed =
                         numericMark !== null &&
                         !invalid &&
-                        numericMark >=
-                          passMark
+                        numericMark >= passMark
 
                       return (
                         <tr
-                          key={
-                            student.studentId
-                          }
+                          key={student.studentId}
                           className="transition-colors hover:bg-muted/30"
                         >
-                          <td className="px-5 py-4 text-sm font-medium">
+                          <td className="sticky left-0 z-10 w-32 min-w-32 whitespace-nowrap bg-background/95 px-5 py-4 text-sm font-medium backdrop-blur">
                             <HighlightMatch
                               text={student.registrationNo}
                               query={search}
                             />
                           </td>
 
-                          <td className="px-5 py-4">
+                          <td className="sticky left-32 z-10 min-w-48 bg-background/95 px-5 py-4 backdrop-blur">
                             <span className="text-sm font-medium">
                               <HighlightMatch
                                 text={student.name}
@@ -851,74 +927,80 @@ export default function MarksPage() {
                               type="number"
                               min={0}
                               max={maxMark}
-                              value={
-                                student.marks
+                              value={student.marks}
+                              aria-label={`Marks for ${student.name}`}
+                              aria-invalid={invalid}
+                              aria-describedby={
+                                invalid
+                                  ? markErrorId
+                                  : undefined
                               }
                               disabled={
-                                student.absent
+                                student.absent ||
+                                loadingMarks ||
+                                saving
                               }
                               onChange={(e) =>
                                 updateMark(
                                   student.studentId,
-                                  e.target
-                                    .value
+                                  e.target.value
                                 )
                               }
                               className={
                                 invalid
-                                  ? "h-10 w-28 border-destructive focus-visible:ring-destructive"
-                                  : "h-10 w-28"
+                                  ? "h-10 w-24 border-destructive focus-visible:ring-destructive sm:w-28"
+                                  : "h-10 w-24 sm:w-28"
                               }
                             />
 
                             {invalid && (
-                              <p className="mt-1 text-xs text-destructive">
-                                0–
-                                {maxMark}{" "}
-                                only
+                              <p
+                                id={markErrorId}
+                                className="mt-1 text-xs text-destructive"
+                              >
+                                0–{maxMark} only
                               </p>
                             )}
                           </td>
 
-                          <td className="px-5 py-4">
+                          <td className="whitespace-nowrap px-5 py-4">
                             <input
                               type="checkbox"
-                              checked={
-                                student.absent
-                              }
+                              checked={student.absent}
                               onChange={() =>
                                 toggleAbsent(
                                   student.studentId
                                 )
                               }
+                              disabled={
+                                loadingMarks ||
+                                saving
+                              }
+                              aria-label={`Mark ${student.name} as absent`}
                               className="size-4 accent-primary"
                             />
                           </td>
 
-                          <td className="px-5 py-4 text-sm">
+                          <td className="whitespace-nowrap px-5 py-4 text-sm">
                             {student.absent
                               ? "Absent"
-                              : percentage !==
-                                  null
-                                ? `${percentage.toFixed(
-                                    1
-                                  )}%`
+                              : percentage !== null
+                                ? `${percentage.toFixed(1)}%`
                                 : "-"}
                           </td>
 
-                          <td className="px-5 py-4 text-sm font-medium">
+                          <td className="whitespace-nowrap px-5 py-4 text-sm font-medium">
                             {student.absent
                               ? "-"
                               : grade}
                           </td>
 
-                          <td className="px-5 py-4">
+                          <td className="whitespace-nowrap px-5 py-4">
                             {student.absent ? (
                               <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                                 Absent
                               </span>
-                            ) : percentage ===
-                              null ? (
+                            ) : percentage === null ? (
                               <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
                                 Missing
                               </span>
@@ -948,9 +1030,9 @@ export default function MarksPage() {
       </Card>
 
       {students.length > 0 && (
-        <div className="flex justify-end">
+        <div className="flex justify-stretch sm:justify-end">
           <Button
-            className="gap-2"
+            className="w-full gap-2 sm:w-auto"
             onClick={handleSave}
             disabled={
               saving ||

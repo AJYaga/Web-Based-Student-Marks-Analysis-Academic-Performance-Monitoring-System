@@ -247,6 +247,10 @@ export default function ExaminationsPage() {
   }
 
   async function saveExam() {
+    if (saving) {
+      return
+    }
+    
     if (
       !name.trim() ||
       !date ||
@@ -316,6 +320,10 @@ export default function ExaminationsPage() {
   }
 
   async function confirmDelete() {
+    if (deleting) {
+      return
+    }
+    
     if (!deleteId) return
 
     try {
@@ -367,7 +375,11 @@ export default function ExaminationsPage() {
 
         <Button
           className="gap-2"
-          disabled={classes.length === 0}
+          disabled={
+            classes.length === 0 ||
+            saving ||
+            deleting
+          }
           onClick={() => {
             resetForm()
             setShowForm(true)
@@ -415,129 +427,179 @@ export default function ExaminationsPage() {
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="space-y-5">
+          <CardContent>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                void saveExam()
+              }}
+              className="space-y-5"
+            >
             <div className="grid gap-4 md:grid-cols-4">
-              <Input
-                placeholder="Examination name"
-                value={name}
-                onChange={(e) =>
-                  setName(e.target.value)
-                }
-                className="h-11"
-                disabled={saving}
-              />
+              <div className="space-y-2">
+                <label
+                  htmlFor="examination-name"
+                  className="text-sm font-medium"
+                >
+                  Examination Name
+                </label>
 
-              <Popover>
-                <PopoverTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-11 w-full justify-start gap-2 px-3 font-normal"
-                      disabled={saving}
-                    />
+                <Input
+                  id="examination-name"
+                  placeholder="Examination name"
+                  value={name}
+                  onChange={(e) =>
+                    setName(e.target.value)
                   }
-                >
-                  <CalendarDays className="size-4 text-muted-foreground" />
+                  className="h-11"
+                  disabled={saving}
+                />
+              </div>
 
-                  <span
-                    className={
-                      !date
-                        ? "text-muted-foreground"
-                        : ""
+              <div className="space-y-2">
+                <label
+                  id="examination-date-label"
+                  className="text-sm font-medium"
+                >
+                  Examination Date
+                </label>
+
+                <Popover>
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        id="examination-date"
+                        type="button"
+                        variant="outline"
+                        aria-labelledby="examination-date-label examination-date"
+                        className="h-11 w-full justify-start gap-2 px-3 font-normal"
+                        disabled={saving}
+                      />
                     }
                   >
-                    {formatDate(date)}
-                  </span>
-                </PopoverTrigger>
+                    <CalendarDays
+                      aria-hidden="true"
+                      className="size-4 text-muted-foreground"
+                    />
 
-                <PopoverContent
-                  align="start"
-                  sideOffset={8}
-                  className="w-auto p-0"
-                >
-                  <Calendar
-                    mode="single"
-                    selected={
-                      date
-                        ? (() => {
-                            const [
-                              year,
-                              month,
-                              day,
-                            ] = date
-                              .split("-")
-                              .map(Number)
+                    <span
+                      className={
+                        !date
+                          ? "text-muted-foreground"
+                          : ""
+                      }
+                    >
+                      {formatDate(date)}
+                    </span>
+                  </PopoverTrigger>
 
-                            return new Date(
-                              year,
-                              month - 1,
-                              day
-                            )
-                          })()
-                        : undefined
-                    }
-                    onSelect={(selectedDate) => {
-                      if (!selectedDate) return
-
-                      const year =
-                        selectedDate.getFullYear()
-
-                      const month = String(
-                        selectedDate.getMonth() + 1
-                      ).padStart(2, "0")
-
-                      const day = String(
-                        selectedDate.getDate()
-                      ).padStart(2, "0")
-
-                      setDate(
-                        `${year}-${month}-${day}`
-                      )
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <select
-                value={classId}
-                onChange={(e) => {
-                  setClassId(e.target.value)
-                  setSelectedSubjectIds([])
-                }}
-                className="h-11 rounded-lg border border-input bg-background px-3"
-                disabled={saving}
-              >
-                {classes.map((item) => (
-                  <option
-                    key={item.id}
-                    value={item.id}
+                  <PopoverContent
+                    align="start"
+                    sideOffset={8}
+                    className="w-auto p-0"
                   >
-                    {item.name} —{" "}
-                    {item.academicYear}
-                  </option>
-                ))}
-              </select>
+                    <Calendar
+                      mode="single"
+                      selected={
+                        date
+                          ? (() => {
+                              const [
+                                year,
+                                month,
+                                day,
+                              ] = date
+                                .split("-")
+                                .map(Number)
 
-              <select
-                value={term}
-                onChange={(e) =>
-                  setTerm(e.target.value)
-                }
-                className="h-11 rounded-lg border border-input bg-background px-3"
-                disabled={saving}
-              >
-                <option>Term 1</option>
-                <option>Term 2</option>
-                <option>Term 3</option>
-              </select>
+                              return new Date(
+                                year,
+                                month - 1,
+                                day
+                              )
+                            })()
+                          : undefined
+                      }
+                      onSelect={(selectedDate) => {
+                        if (!selectedDate) return
+
+                        const year =
+                          selectedDate.getFullYear()
+
+                        const month = String(
+                          selectedDate.getMonth() + 1
+                        ).padStart(2, "0")
+
+                        const day = String(
+                          selectedDate.getDate()
+                        ).padStart(2, "0")
+
+                        setDate(
+                          `${year}-${month}-${day}`
+                        )
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="examination-class"
+                  className="text-sm font-medium"
+                >
+                  Class
+                </label>
+
+                <select
+                  id="examination-class"
+                  value={classId}
+                  onChange={(e) => {
+                    setClassId(e.target.value)
+                    setSelectedSubjectIds([])
+                  }}
+                  className="h-11 w-full rounded-lg border border-input bg-background px-3"
+                  disabled={saving}
+                >
+                  {classes.map((item) => (
+                    <option
+                      key={item.id}
+                      value={item.id}
+                    >
+                      {item.name} — {item.academicYear}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="examination-term"
+                  className="text-sm font-medium"
+                >
+                  Term
+                </label>
+
+                <select
+                  id="examination-term"
+                  value={term}
+                  onChange={(e) =>
+                    setTerm(e.target.value)
+                  }
+                  className="h-11 w-full rounded-lg border border-input bg-background px-3"
+                  disabled={saving}
+                >
+                  <option>Term 1</option>
+                  <option>Term 2</option>
+                  <option>Term 3</option>
+                </select>
+              </div>
             </div>
 
-            <div className="space-y-3">
+            <fieldset className="space-y-3">
               <div>
-                <p className="text-sm font-medium">
+                <legend className="text-sm font-medium">
                   Subjects
-                </p>
+                </legend>
 
                 <p className="text-xs text-muted-foreground">
                   Select the subjects included in this examination.
@@ -581,11 +643,12 @@ export default function ExaminationsPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </fieldset>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <Button
-                onClick={saveExam}
+                type="submit"
+                className="w-full sm:w-auto"
                 disabled={
                   saving ||
                   selectedSubjectIds.length === 0
@@ -595,13 +658,19 @@ export default function ExaminationsPage() {
                   <Loader2 className="mr-2 size-4 animate-spin" />
                 )}
 
-                {editingId
-                  ? "Update Examination"
-                  : "Save Examination"}
+                {saving
+                  ? editingId
+                    ? "Updating..."
+                    : "Saving..."
+                  : editingId
+                    ? "Update Examination"
+                    : "Save Examination"}
               </Button>
 
               <Button
+                type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 disabled={saving}
                 onClick={() => {
                   resetForm()
@@ -611,19 +680,23 @@ export default function ExaminationsPage() {
                 Cancel
               </Button>
             </div>
+            </form>
           </CardContent>
         </Card>
       )}
 
       <Card className="glass overflow-hidden">
         <CardHeader>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <CardTitle className="text-lg">
               Examination List
             </CardTitle>
 
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="relative w-full md:max-w-sm">
+              <Search
+                aria-hidden="true"
+                className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              />
 
               <Input
                 value={search}
@@ -631,7 +704,12 @@ export default function ExaminationsPage() {
                   setSearch(e.target.value)
                 }
                 placeholder="Search examinations..."
+                aria-label="Search examinations"
                 className="pl-9"
+                disabled={
+                  loading ||
+                  exams.length === 0
+                }
               />
             </div>
           </div>
@@ -639,18 +717,62 @@ export default function ExaminationsPage() {
 
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center gap-2 p-10 text-muted-foreground">
+            <div className="flex min-h-56 items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
               Loading examinations...
             </div>
+          ) : exams.length === 0 ? (
+            <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
+              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <CalendarDays className="size-5" />
+              </div>
+
+              <p className="font-medium">
+                No examinations yet
+              </p>
+
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Create your first examination to begin entering marks and analysing performance.
+              </p>
+
+              {classes.length > 0 && (
+                <Button
+                  className="mt-4 gap-2"
+                  disabled={saving || deleting}
+                  onClick={() => {
+                    resetForm()
+                    setShowForm(true)
+                  }}
+                >
+                  <Plus className="size-4" />
+                  Add Examination
+                </Button>
+              )}
+            </div>
           ) : filtered.length === 0 ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">
-              No examinations found.
+            <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
+              <Search className="mb-3 size-8 text-muted-foreground" />
+
+              <p className="font-medium">
+                No matching examinations
+              </p>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                No examinations match “{search.trim()}”.
+              </p>
+
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setSearch("")}
+              >
+                Clear Search
+              </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain">
               <table className="w-full min-w-190">
-                <thead className="border-y bg-muted/50">
+                <thead className="sticky top-0 z-10 border-y bg-muted/90 backdrop-blur">
                   <tr>
                     <th className="px-5 py-3 text-left">
                       Examination
@@ -672,7 +794,7 @@ export default function ExaminationsPage() {
                       Date
                     </th>
 
-                    <th className="px-5 py-3 text-right">
+                    <th className="sticky right-0 z-20 bg-muted/95 px-5 py-3 text-right backdrop-blur">
                       Actions
                     </th>
                   </tr>
@@ -691,14 +813,14 @@ export default function ExaminationsPage() {
                         />
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="whitespace-nowrap px-5 py-4">
                         <HighlightMatch
                           text={item.className}
                           query={search}
                         />
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="whitespace-nowrap px-5 py-4">
                         <HighlightMatch
                           text={item.term}
                           query={search}
@@ -707,22 +829,21 @@ export default function ExaminationsPage() {
 
                       <td className="px-5 py-4">
                         {item.subjects
-                          .map(
-                            (subject) =>
-                              subject.code
-                          )
+                          .map((subject) => subject.code)
                           .join(", ")}
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="whitespace-nowrap px-5 py-4">
                         {formatDate(item.date)}
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="sticky right-0 z-10 bg-background/95 px-5 py-4 backdrop-blur">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
+                            aria-label={`Edit ${item.name}`}
+                            disabled={saving || deleting}
                             onClick={() =>
                               editExam(item)
                             }
@@ -733,6 +854,8 @@ export default function ExaminationsPage() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            aria-label={`Delete ${item.name}`}
+                            disabled={saving || deleting}
                             onClick={() =>
                               setDeleteId(item.id)
                             }

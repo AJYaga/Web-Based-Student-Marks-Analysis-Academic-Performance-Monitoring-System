@@ -312,12 +312,17 @@ export default function AnalyticsPage() {
       <Card className="glass">
         <CardContent className="grid gap-4 p-5 md:grid-cols-3">
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label
+              htmlFor="analytics-class"
+              className="text-sm font-medium"
+            >
               Class
             </label>
 
             <select
+              id="analytics-class"
               value={classId}
+              disabled={loadingAnalytics}
               onChange={(e) =>
                 handleClassChange(
                   e.target.value
@@ -340,11 +345,15 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label
+              htmlFor="analytics-examination"
+              className="text-sm font-medium"
+            >
               Examination
             </label>
 
             <select
+              id="analytics-examination"
               value={examinationId}
               onChange={(e) =>
                 handleExamChange(
@@ -353,8 +362,8 @@ export default function AnalyticsPage() {
               }
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
               disabled={
-                classExaminations.length ===
-                0
+                availableSubjects.length === 0 ||
+                loadingAnalytics
               }
             >
               {classExaminations.length ===
@@ -378,11 +387,15 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <label
+              htmlFor="analytics-subject"
+              className="text-sm font-medium"
+            >
               Subject
             </label>
 
             <select
+              id="analytics-subject"
               value={subjectId}
               onChange={(e) =>
                 handleSubjectChange(
@@ -391,8 +404,8 @@ export default function AnalyticsPage() {
               }
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
               disabled={
-                availableSubjects.length ===
-                0
+                availableSubjects.length === 0 ||
+                loadingAnalytics
               }
             >
               <option value="all">
@@ -615,9 +628,9 @@ export default function AnalyticsPage() {
                   require attention.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overscroll-x-contain">
                   <table className="w-full min-w-162.5">
-                    <thead className="border-y bg-muted/50">
+                    <thead className="sticky top-0 z-10 border-y bg-muted/90 backdrop-blur">
                       <tr>
                         <th className="px-5 py-3 text-left">
                           Student
@@ -653,29 +666,38 @@ export default function AnalyticsPage() {
                               }
                             </td>
 
-                            <td className="px-5 py-4">
+                            <td className="whitespace-nowrap px-5 py-4">
                               {
                                 student.registrationNo
                               }
                             </td>
 
-                            <td className="px-5 py-4 text-destructive">
+                            <td className="whitespace-nowrap px-5 py-4 text-destructive">
                               {student.average.toFixed(
                                 1
                               )}
                               %
                             </td>
 
-                            <td className="px-5 py-4">
+                            <td className="whitespace-nowrap px-5 py-4">
                               <span className="inline-flex items-center gap-1 text-sm">
                                 {student.trend ===
                                 "Declining" ? (
-                                  <TrendingDown className="size-4 text-destructive" />
+                                  <TrendingDown
+                                    aria-hidden="true"
+                                    className="size-4 text-destructive"
+                                  />  
                                 ) : student.trend ===
                                   "Improving" ? (
-                                  <TrendingUp className="size-4 text-primary" />
+                                  <TrendingUp 
+                                    aria-hidden="true"
+                                    className="size-4 text-primary" 
+                                  />
                                 ) : (
-                                  <Minus className="size-4 text-muted-foreground" />
+                                  <Minus 
+                                    aria-hidden="true"
+                                    className="size-4 text-muted-foreground" 
+                                  />
                                 )}
 
                                 {

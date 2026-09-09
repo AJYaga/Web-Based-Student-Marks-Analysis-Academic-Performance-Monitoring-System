@@ -144,13 +144,10 @@ export default function DashboardPage() {
     return [
       {
         title: "Total Students",
-        value:
-          String(
-            data.summary
-              .totalStudents
-          ),
-        description:
-          "Active students",
+        value: String(
+          data.summary.totalStudents
+        ),
+        description: "Registered students",
         icon: Users,
       },
 
@@ -185,7 +182,7 @@ export default function DashboardPage() {
               .needsAttention
           ),
         description:
-          "Students below 40%",
+          "Below 40% average",
         icon: TriangleAlert,
       },
     ]
@@ -250,7 +247,10 @@ export default function DashboardPage() {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
           {error}
         </div>
       )}

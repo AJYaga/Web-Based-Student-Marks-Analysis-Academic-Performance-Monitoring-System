@@ -114,6 +114,10 @@ export default function ClassesPage() {
   }
 
   async function saveClass() {
+    if (saving) {
+      return
+    }
+    
     if (!name.trim()) {
       setError("Please enter a class name.")
       return
@@ -177,6 +181,10 @@ export default function ClassesPage() {
   }
 
   async function confirmDeleteClass() {
+    if (deleting) {
+      return
+    }
+    
     if (!deleteId) {
       return
     }
@@ -225,6 +233,7 @@ export default function ClassesPage() {
 
         <Button
           className="gap-2"
+          disabled={saving || deleting}
           onClick={() => {
             resetForm()
             setShowForm(true)
@@ -270,52 +279,96 @@ export default function ClassesPage() {
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="grid gap-4 md:grid-cols-3">
-            <Input
-              placeholder="Class name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-11"
-              disabled={saving}
-            />
-
-            <select
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
-              className="h-11 rounded-lg border border-input bg-background px-3"
-              disabled={saving}
+          <CardContent>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                void saveClass()
+              }}
+              className="grid gap-4 md:grid-cols-3"
             >
-              <option>Grade 9</option>
-              <option>Grade 10</option>
-              <option>Grade 11</option>
-              <option>Grade 12</option>
-            </select>
+            <div className="space-y-2">
+              <label
+                htmlFor="class-name"
+                className="text-sm font-medium"
+              >
+                Class Name
+              </label>
 
-            <Input
-              type="number"
-              placeholder="Academic year"
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              className="h-11"
-              disabled={saving}
-            />
+              <Input
+                id="class-name"
+                placeholder="Class name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-11"
+                disabled={saving}
+              />
+            </div>
 
-            <div className="flex gap-3 md:col-span-3">
+            <div className="space-y-2">
+              <label
+                htmlFor="class-level"
+                className="text-sm font-medium"
+              >
+                Level
+              </label>
+
+              <select
+                id="class-level"
+                value={level}
+                onChange={(e) => setLevel(e.target.value)}
+                className="h-11 w-full rounded-lg border border-input bg-background px-3"
+                disabled={saving}
+              >
+                <option>Grade 9</option>
+                <option>Grade 10</option>
+                <option>Grade 11</option>
+                <option>Grade 12</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="academic-year"
+                className="text-sm font-medium"
+              >
+                Academic Year
+              </label>
+
+              <Input
+                id="academic-year"
+                type="number"
+                placeholder="Academic year"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="h-11"
+                disabled={saving}
+              />
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row md:col-span-3">
               <Button
-                onClick={saveClass}
+                type="submit"
+                className="w-full sm:w-auto"
                 disabled={saving}
               >
                 {saving && (
                   <Loader2 className="mr-2 size-4 animate-spin" />
                 )}
 
-                {editingId
-                  ? "Update Class"
-                  : "Save Class"}
+                {saving
+                  ? editingId
+                    ? "Updating..."
+                    : "Saving..."
+                  : editingId
+                    ? "Update Class"
+                    : "Save Class"}
               </Button>
 
               <Button
+                type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 disabled={saving}
                 onClick={() => {
                   resetForm()
@@ -325,25 +378,34 @@ export default function ClassesPage() {
                 Cancel
               </Button>
             </div>
+            </form>
           </CardContent>
         </Card>
       )}
 
       <Card className="glass overflow-hidden">
         <CardHeader>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <CardTitle className="text-lg">
               Class List
             </CardTitle>
 
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="relative w-full md:max-w-sm">
+              <Search
+                aria-hidden="true"
+                className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              />
 
               <Input
                 placeholder="Search classes..."
+                aria-label="Search classes"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
+                disabled={
+                  loading ||
+                  classes.length === 0
+                }
               />
             </div>
           </div>
@@ -351,18 +413,60 @@ export default function ClassesPage() {
 
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center gap-2 p-10 text-muted-foreground">
+            <div className="flex min-h-56 items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
               Loading classes...
             </div>
+          ) : classes.length === 0 ? (
+            <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
+              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <GraduationCap className="size-5" />
+              </div>
+
+              <p className="font-medium">
+                No classes yet
+              </p>
+
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Create your first class to begin organising students and subjects.
+              </p>
+
+              <Button
+                className="mt-4 gap-2"
+                disabled={saving || deleting}
+                onClick={() => {
+                  resetForm()
+                  setShowForm(true)
+                }}
+              >
+                <Plus className="size-4" />
+                Add Class
+              </Button>
+            </div>
           ) : filtered.length === 0 ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">
-              No classes found.
+            <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
+              <Search className="mb-3 size-8 text-muted-foreground" />
+
+              <p className="font-medium">
+                No matching classes
+              </p>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                No classes match “{search.trim()}”.
+              </p>
+
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setSearch("")}
+              >
+                Clear Search
+              </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain">
               <table className="w-full min-w-175">
-                <thead className="border-y bg-muted/50">
+                <thead className="sticky top-0 z-10 border-y bg-muted/90 backdrop-blur">
                   <tr>
                     <th className="px-5 py-3 text-left">
                       Class
@@ -376,7 +480,7 @@ export default function ClassesPage() {
                     <th className="px-5 py-3 text-left">
                       Students
                     </th>
-                    <th className="px-5 py-3 text-right">
+                    <th className="sticky right-0 z-20 bg-muted/95 px-5 py-3 text-right backdrop-blur">
                       Actions
                     </th>
                   </tr>
@@ -395,29 +499,31 @@ export default function ClassesPage() {
                         />
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="whitespace-nowrap px-5 py-4">
                         <HighlightMatch
                           text={item.level}
                           query={search}
                         />
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="whitespace-nowrap px-5 py-4">
                         <HighlightMatch
                           text={String(item.academicYear)}
                           query={search}
                         />
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="whitespace-nowrap px-5 py-4">
                         {item.students}
                       </td>
 
-                      <td className="px-5 py-4">
+                      <td className="sticky right-0 z-10 bg-background/95 px-5 py-4 backdrop-blur">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
+                            aria-label={`Edit ${item.name}`}
+                            disabled={saving || deleting}
                             onClick={() =>
                               editClass(item)
                             }
@@ -428,6 +534,8 @@ export default function ClassesPage() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            aria-label={`Delete ${item.name}`}
+                            disabled={saving || deleting}
                             onClick={() =>
                               setDeleteId(item.id)
                             }
