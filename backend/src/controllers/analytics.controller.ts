@@ -173,6 +173,9 @@ export async function getAnalytics(
           registrationNo: true,
           name: true,
         },
+        orderBy: {
+          registrationNo: "asc",
+        },
       })
 
     const studentIds =
@@ -449,6 +452,9 @@ export async function getAnalytics(
           id: true,
           code: true,
           name: true,
+        },
+        orderBy: {
+          code: "asc",
         },
       })
 

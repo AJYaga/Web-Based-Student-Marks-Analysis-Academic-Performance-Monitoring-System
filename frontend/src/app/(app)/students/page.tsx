@@ -44,6 +44,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  useSuccessDialog,
+} from "@/components/success-dialog-provider"
+
+import {
+  HighlightMatch,
+} from "@/components/highlight-match"
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<StudentRecord[]>([])
@@ -67,7 +74,9 @@ export default function StudentsPage() {
   const [deleting, setDeleting] = useState(false)
 
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
+  const {
+    showSuccess,
+  } = useSuccessDialog()
 
   async function loadPageData() {
     try {
@@ -188,7 +197,6 @@ export default function StudentsPage() {
     try {
       setSaving(true)
       setError("")
-      setSuccess("")
 
       if (editingId) {
         await updateStudent(editingId, {
@@ -197,7 +205,7 @@ export default function StudentsPage() {
           classId: studentClass,
         })
 
-        setSuccess(
+        showSuccess(
           "Student updated successfully."
         )
       } else {
@@ -207,7 +215,7 @@ export default function StudentsPage() {
           classId: studentClass,
         })
 
-        setSuccess(
+        showSuccess(
           "Student added successfully."
         )
       }
@@ -234,7 +242,6 @@ export default function StudentsPage() {
     setStudentClass(student.classId)
     setShowForm(true)
     setError("")
-    setSuccess("")
   }
 
   async function handleDelete() {
@@ -245,7 +252,6 @@ export default function StudentsPage() {
     try {
       setDeleting(true)
       setError("")
-      setSuccess("")
 
       await deleteStudentRequest(studentToDelete)
 
@@ -256,7 +262,7 @@ export default function StudentsPage() {
         )
       )
 
-      setSuccess(
+      showSuccess(
         "Student deleted successfully."
       )
 
@@ -304,7 +310,6 @@ export default function StudentsPage() {
           disabled={classes.length === 0}
           onClick={() => {
             resetForm()
-            setSuccess("")
             setShowForm(true)
           }}
         >
@@ -325,12 +330,6 @@ export default function StudentsPage() {
           className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="rounded-xl border border-secondary bg-secondary/40 px-4 py-3 text-sm font-medium">
-          {success}
         </div>
       )}
 
@@ -540,7 +539,12 @@ export default function StudentsPage() {
                       className="transition-colors hover:bg-muted/30"
                     >
                       <td className="px-5 py-4 text-sm font-medium">
-                        {student.registrationNo}
+                        <HighlightMatch
+                          text={
+                            student.registrationNo
+                          }
+                          query={search}
+                        />
                       </td>
 
                       <td className="px-5 py-4">
@@ -552,13 +556,19 @@ export default function StudentsPage() {
                           </div>
 
                           <span className="text-sm font-medium">
-                            {student.name}
+                            <HighlightMatch
+                              text={student.name}
+                              query={search}
+                            />
                           </span>
                         </div>
                       </td>
 
                       <td className="px-5 py-4 text-sm">
-                        {student.className}
+                        <HighlightMatch
+                          text={student.className}
+                          query={search}
+                        />
                       </td>
 
                       <td className="px-5 py-4 text-sm">

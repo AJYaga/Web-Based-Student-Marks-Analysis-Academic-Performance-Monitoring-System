@@ -160,7 +160,7 @@ export async function getStudentReport(
         },
 
         orderBy: {
-          name: "asc",
+          code: "asc",
         },
       })
 

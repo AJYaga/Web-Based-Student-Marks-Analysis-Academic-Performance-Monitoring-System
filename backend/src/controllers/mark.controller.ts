@@ -186,7 +186,7 @@ export async function getMarksEntry(
         status: "ACTIVE",
       },
       orderBy: {
-        name: "asc",
+        registrationNo: "asc",
       },
     })
 

@@ -49,6 +49,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  useSuccessDialog,
+} from "@/components/success-dialog-provider"
+
+import {
+  HighlightMatch,
+} from "@/components/highlight-match"
 
 export default function SubjectsPage() {
   const [subjects, setSubjects] =
@@ -93,8 +100,9 @@ export default function SubjectsPage() {
   const [error, setError] =
     useState("")
 
-  const [success, setSuccess] =
-    useState("")
+  const {
+    showSuccess,
+  } = useSuccessDialog()
 
   async function loadPageData() {
     try {
@@ -246,7 +254,6 @@ export default function SubjectsPage() {
     try {
       setSaving(true)
       setError("")
-      setSuccess("")
 
       if (editingId) {
         await updateSubject(
@@ -259,7 +266,7 @@ export default function SubjectsPage() {
           }
         )
 
-        setSuccess(
+        showSuccess(
           "Subject updated successfully."
         )
       } else {
@@ -270,7 +277,7 @@ export default function SubjectsPage() {
           classId,
         })
 
-        setSuccess(
+        showSuccess(
           "Subject added successfully."
         )
       }
@@ -305,7 +312,6 @@ export default function SubjectsPage() {
 
     setShowForm(true)
     setError("")
-    setSuccess("")
   }
 
   async function confirmDelete() {
@@ -314,7 +320,6 @@ export default function SubjectsPage() {
     try {
       setDeleting(true)
       setError("")
-      setSuccess("")
 
       await deleteSubjectRequest(
         deleteId
@@ -327,7 +332,7 @@ export default function SubjectsPage() {
         )
       )
 
-      setSuccess(
+      showSuccess(
         "Subject deleted successfully."
       )
 
@@ -370,7 +375,6 @@ export default function SubjectsPage() {
           }
           onClick={() => {
             resetForm()
-            setSuccess("")
             setShowForm(true)
           }}
         >
@@ -393,12 +397,6 @@ export default function SubjectsPage() {
           className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="rounded-xl border border-secondary bg-secondary/40 px-4 py-3 text-sm font-medium">
-          {success}
         </div>
       )}
 
@@ -584,15 +582,24 @@ export default function SubjectsPage() {
                         className="hover:bg-muted/30"
                       >
                         <td className="px-5 py-4 font-medium">
-                          {item.code}
+                          <HighlightMatch
+                            text={item.code}
+                            query={search}
+                          />
                         </td>
 
                         <td className="px-5 py-4">
-                          {item.name}
+                          <HighlightMatch
+                            text={item.name}
+                            query={search}
+                          />
                         </td>
 
                         <td className="px-5 py-4">
-                          {item.className}
+                          <HighlightMatch
+                            text={item.className}
+                            query={search}
+                          />
                         </td>
 
                         <td className="px-5 py-4">

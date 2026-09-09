@@ -41,6 +41,13 @@ import {
 } from "@/components/ui/card"
 
 import { Input } from "@/components/ui/input"
+import {
+  useSuccessDialog,
+} from "@/components/success-dialog-provider"
+
+import {
+  HighlightMatch,
+} from "@/components/highlight-match"
 
 type EditableStudentMark = {
   studentId: string
@@ -95,8 +102,9 @@ export default function MarksPage() {
   const [error, setError] =
     useState("")
 
-  const [success, setSuccess] =
-    useState("")
+  const {
+    showSuccess,
+  } = useSuccessDialog()
 
   const classExaminations = useMemo(
     () =>
@@ -208,7 +216,6 @@ export default function MarksPage() {
       try {
         setLoadingMarks(true)
         setError("")
-        setSuccess("")
 
         const response =
           await getMarks(
@@ -322,8 +329,6 @@ export default function MarksPage() {
     studentId: string,
     value: string
   ) {
-    setSuccess("")
-
     setStudents((current) =>
       current.map((student) =>
         student.studentId ===
@@ -344,8 +349,6 @@ export default function MarksPage() {
   function toggleAbsent(
     studentId: string
   ) {
-    setSuccess("")
-
     setStudents((current) =>
       current.map((student) =>
         student.studentId ===
@@ -385,8 +388,6 @@ export default function MarksPage() {
     try {
       setSaving(true)
       setError("")
-      setSuccess("")
-
       await saveMarks({
         classId,
         examinationId: examId,
@@ -410,7 +411,7 @@ export default function MarksPage() {
         ),
       })
 
-      setSuccess(
+      showSuccess(
         "Marks saved successfully."
       )
 
@@ -458,28 +459,6 @@ export default function MarksPage() {
             marks efficiently.
           </p>
         </div>
-
-        <Button
-          className="gap-2"
-          onClick={handleSave}
-          disabled={
-            saving ||
-            loadingMarks ||
-            students.length === 0 ||
-            invalidCount > 0 ||
-            missingCount > 0
-          }
-        >
-          {saving ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Save className="size-4" />
-          )}
-
-          {saving
-            ? "Saving..."
-            : "Save Marks"}
-        </Button>
       </div>
 
       {error && (
@@ -488,13 +467,6 @@ export default function MarksPage() {
           className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="flex items-center gap-2 rounded-xl border border-secondary bg-secondary/50 px-4 py-3 text-sm font-medium">
-          <CheckCircle2 className="size-4" />
-          {success}
         </div>
       )}
 
@@ -543,7 +515,6 @@ export default function MarksPage() {
 
                 setStudents([])
                 setContext(null)
-                setSuccess("")
                 setError("")
               }}
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
@@ -585,7 +556,6 @@ export default function MarksPage() {
 
                 setStudents([])
                 setContext(null)
-                setSuccess("")
                 setError("")
               }}
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
@@ -626,7 +596,6 @@ export default function MarksPage() {
 
                 setStudents([])
                 setContext(null)
-                setSuccess("")
                 setError("")
               }}
               className="h-11 w-full rounded-lg border border-input bg-background px-3"
@@ -862,16 +831,18 @@ export default function MarksPage() {
                           className="transition-colors hover:bg-muted/30"
                         >
                           <td className="px-5 py-4 text-sm font-medium">
-                            {
-                              student.registrationNo
-                            }
+                            <HighlightMatch
+                              text={student.registrationNo}
+                              query={search}
+                            />
                           </td>
 
                           <td className="px-5 py-4">
                             <span className="text-sm font-medium">
-                              {
-                                student.name
-                              }
+                              <HighlightMatch
+                                text={student.name}
+                                query={search}
+                              />
                             </span>
                           </td>
 
@@ -975,6 +946,32 @@ export default function MarksPage() {
           )}
         </CardContent>
       </Card>
+
+      {students.length > 0 && (
+        <div className="flex justify-end">
+          <Button
+            className="gap-2"
+            onClick={handleSave}
+            disabled={
+              saving ||
+              loadingMarks ||
+              invalidCount > 0 ||
+              missingCount > 0
+            }
+          >
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
+
+            {saving
+              ? "Saving..."
+              : "Save Marks"}
+          </Button>
+        </div>
+      )}
+
     </div>
   )
 }

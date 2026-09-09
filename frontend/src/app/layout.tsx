@@ -4,6 +4,9 @@ import "./globals.css"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import {
+  SuccessDialogProvider,
+} from "@/components/success-dialog-provider"
 
 const geist = Geist({
   subsets: ["latin"],
@@ -30,7 +33,9 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           <TooltipProvider>
-            {children}
+            <SuccessDialogProvider>
+              {children}
+            </SuccessDialogProvider>
           </TooltipProvider>
         </ThemeProvider>
       </body>

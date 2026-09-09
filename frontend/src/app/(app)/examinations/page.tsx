@@ -61,6 +61,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
+import {
+  useSuccessDialog,
+} from "@/components/success-dialog-provider"
+
+import {
+  HighlightMatch,
+} from "@/components/highlight-match"
+
 function formatDate(value: string) {
   if (!value) return "Select examination date"
 
@@ -110,7 +118,9 @@ export default function ExaminationsPage() {
   const [deleting, setDeleting] = useState(false)
 
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
+  const {
+    showSuccess,
+  } = useSuccessDialog()
 
   async function loadPageData() {
     try {
@@ -252,7 +262,6 @@ export default function ExaminationsPage() {
     try {
       setSaving(true)
       setError("")
-      setSuccess("")
 
       const data = {
         name,
@@ -265,13 +274,13 @@ export default function ExaminationsPage() {
       if (editingId) {
         await updateExamination(editingId, data)
 
-        setSuccess(
+        showSuccess(
           "Examination updated successfully."
         )
       } else {
         await createExamination(data)
 
-        setSuccess(
+        showSuccess(
           "Examination created successfully."
         )
       }
@@ -304,7 +313,6 @@ export default function ExaminationsPage() {
 
     setShowForm(true)
     setError("")
-    setSuccess("")
   }
 
   async function confirmDelete() {
@@ -313,7 +321,6 @@ export default function ExaminationsPage() {
     try {
       setDeleting(true)
       setError("")
-      setSuccess("")
 
       await deleteExaminationRequest(deleteId)
 
@@ -323,7 +330,7 @@ export default function ExaminationsPage() {
         )
       )
 
-      setSuccess(
+      showSuccess(
         "Examination deleted successfully."
       )
 
@@ -363,7 +370,6 @@ export default function ExaminationsPage() {
           disabled={classes.length === 0}
           onClick={() => {
             resetForm()
-            setSuccess("")
             setShowForm(true)
           }}
         >
@@ -378,12 +384,6 @@ export default function ExaminationsPage() {
           className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="rounded-xl border border-secondary bg-secondary/40 px-4 py-3 text-sm font-medium">
-          {success}
         </div>
       )}
 
@@ -685,15 +685,24 @@ export default function ExaminationsPage() {
                       className="hover:bg-muted/30"
                     >
                       <td className="px-5 py-4 font-medium">
-                        {item.name}
+                        <HighlightMatch
+                          text={item.name}
+                          query={search}
+                        />
                       </td>
 
                       <td className="px-5 py-4">
-                        {item.className}
+                        <HighlightMatch
+                          text={item.className}
+                          query={search}
+                        />
                       </td>
 
                       <td className="px-5 py-4">
-                        {item.term}
+                        <HighlightMatch
+                          text={item.term}
+                          query={search}
+                        />
                       </td>
 
                       <td className="px-5 py-4">

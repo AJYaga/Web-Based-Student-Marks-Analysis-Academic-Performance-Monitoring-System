@@ -61,7 +61,23 @@ async function buildExaminationResponse(examinationId: string) {
     status: examination.status,
     classId: examination.classId,
     className: selectedClass?.name ?? "Unknown Class",
-    subjects: subjects.filter(Boolean),
+    subjects: subjects
+      .filter(
+        (
+          subject
+        ): subject is NonNullable<typeof subject> =>
+          subject !== null
+      )
+      .sort((a, b) =>
+        a.code.localeCompare(
+          b.code,
+          undefined,
+          {
+            numeric: true,
+            sensitivity: "base",
+          }
+        )
+      ),
   }
 }
 

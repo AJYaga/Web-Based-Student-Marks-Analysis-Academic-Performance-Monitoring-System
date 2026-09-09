@@ -63,6 +63,7 @@ export default function ReportsPage() {
     useState<StudentRecord[]>([])
   
   const [exportingPdf, setExportingPdf] = useState(false)
+  const [printingPdf, setPrintingPdf] = useState(false)
 
   const [
     examinations,
@@ -276,13 +277,8 @@ export default function ReportsPage() {
     setError("")
   }
 
-  async function handleExportPdf() {
+  function buildReportPdf() {
     if (!report) return
-
-    try {
-      setExportingPdf(true)
-      setError("")
-
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
@@ -292,61 +288,98 @@ export default function ReportsPage() {
       const pageWidth =
         pdf.internal.pageSize.getWidth()
 
-      // Header
-      pdf.setFont("helvetica", "bold")
-      pdf.setFontSize(18)
+      const pageHeight =
+        pdf.internal.pageSize.getHeight()
 
-      pdf.text(
-        "EduInsight Academic Report",
-        pageWidth / 2,
-        18,
-        {
-          align: "center",
+      const marginX = 18
+      const contentWidth =
+        pageWidth - marginX * 2
+
+      // -----------------------------
+      // Helper functions
+      // -----------------------------
+
+      function drawRoundedCard(
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        fill: [
+          number,
+          number,
+          number,
+        ] = [248, 250, 252]
+      ) {
+        pdf.setFillColor(
+          fill[0],
+          fill[1],
+          fill[2]
+        )
+
+        pdf.setDrawColor(
+          215,
+          224,
+          234
+        )
+
+        pdf.setLineWidth(0.35)
+
+        pdf.roundedRect(
+          x,
+          y,
+          width,
+          height,
+          3,
+          3,
+          "FD"
+        )
+      }
+
+      function ensureSpace(
+        requiredHeight: number,
+        currentY: number
+      ) {
+        if (
+          currentY +
+            requiredHeight >
+          240
+        ) {
+          pdf.addPage()
+          return 20
         }
+
+        return currentY
+      }
+
+      // -----------------------------
+      // Report header
+      // -----------------------------
+
+      let currentY = 22
+
+      pdf.setTextColor(
+        15,
+        23,
+        42
       )
-
-      pdf.setFont(
-        "helvetica",
-        "normal"
-      )
-
-      pdf.setFontSize(11)
-
-      pdf.text(
-        `${report.examination.name} - ${report.examination.term}`,
-        pageWidth / 2,
-        25,
-        {
-          align: "center",
-        }
-      )
-
-      pdf.setFontSize(9)
-
-      pdf.text(
-        formatDate(
-          report.examination.date
-        ),
-        pageWidth / 2,
-        31,
-        {
-          align: "center",
-        }
-      )
-
-      // Student information
-      pdf.setFontSize(11)
 
       pdf.setFont(
         "helvetica",
         "bold"
       )
 
+      pdf.setFontSize(18)
+
       pdf.text(
-        "Student Information",
-        14,
-        42
+        "EduInsight Academic Report",
+        pageWidth / 2,
+        currentY,
+        {
+          align: "center",
+        }
       )
+
+      currentY += 8
 
       pdf.setFont(
         "helvetica",
@@ -355,33 +388,148 @@ export default function ReportsPage() {
 
       pdf.setFontSize(10)
 
-      pdf.text(
-        `Student: ${report.student.name}`,
-        14,
-        49
+      pdf.setTextColor(
+        71,
+        85,
+        105
       )
 
       pdf.text(
-        `Student ID: ${report.student.registrationNo}`,
-        14,
-        55
+        `${report.examination.name} • ${report.examination.term}`,
+        pageWidth / 2,
+        currentY,
+        {
+          align: "center",
+        }
       )
+
+      currentY += 6
+
+      pdf.setFontSize(9)
 
       pdf.text(
-        `Class: ${report.student.className}`,
-        14,
-        61
+        formatDate(
+          report.examination.date
+        ),
+        pageWidth / 2,
+        currentY,
+        {
+          align: "center",
+        }
       )
 
-      pdf.text(
-        `Academic Year: ${report.student.academicYear}`,
-        110,
-        49
+      currentY += 10
+
+      // Divider below report header
+      pdf.setDrawColor(
+        220,
+        228,
+        236
       )
 
+      pdf.line(
+        marginX,
+        currentY,
+        pageWidth - marginX,
+        currentY
+      )
+
+      currentY += 10
+
+      // -----------------------------
+      // Student information card
+      // -----------------------------
+
+      const studentCardHeight = 22
+
+      drawRoundedCard(
+        marginX,
+        currentY,
+        contentWidth,
+        studentCardHeight,
+        [245, 248, 252]
+      )
+
+      const studentColumns = [
+        {
+          label: "Student",
+          value:
+            report.student.name,
+        },
+        {
+          label: "Student ID",
+          value:
+            report.student
+              .registrationNo,
+        },
+        {
+          label: "Class",
+          value:
+            report.student
+              .className,
+        },
+      ]
+
+      const columnWidth =
+        contentWidth / 3
+
+      studentColumns.forEach(
+        (item, index) => {
+          const x =
+            marginX +
+            index *
+              columnWidth +
+            5
+
+          pdf.setFont(
+            "helvetica",
+            "normal"
+          )
+
+          pdf.setFontSize(8)
+
+          pdf.setTextColor(
+            100,
+            116,
+            139
+          )
+
+          pdf.text(
+            item.label,
+            x,
+            currentY + 8
+          )
+
+          pdf.setFont(
+            "helvetica",
+            "bold"
+          )
+
+          pdf.setFontSize(10)
+
+          pdf.setTextColor(
+            15,
+            23,
+            42
+          )
+
+          pdf.text(
+            String(item.value),
+            x,
+            currentY + 14
+          )
+        }
+      )
+
+      currentY +=
+        studentCardHeight + 8
+
+      // -----------------------------
       // Results table
+      // -----------------------------
+
       autoTable(pdf, {
-        startY: 70,
+        startY: currentY,
 
         head: [
           [
@@ -423,19 +571,86 @@ export default function ReportsPage() {
           ]
         ),
 
+        margin: {
+          left: marginX,
+          right: marginX,
+        },
+
         styles: {
           font: "helvetica",
           fontSize: 9,
-          cellPadding: 3,
+          textColor: [
+            15,
+            23,
+            42,
+          ],
+          cellPadding: {
+            top: 4,
+            right: 4,
+            bottom: 4,
+            left: 4,
+          },
+          lineColor: [
+            218,
+            226,
+            235,
+          ],
+          lineWidth: 0.25,
         },
 
         headStyles: {
+          fillColor: [
+            239,
+            246,
+            251,
+          ],
+          textColor: [
+            15,
+            23,
+            42,
+          ],
           fontStyle: "bold",
+          lineColor: [
+            218,
+            226,
+            235,
+          ],
+          lineWidth: 0.25,
         },
 
-        margin: {
-          left: 14,
-          right: 14,
+        bodyStyles: {
+          fillColor: [
+            255,
+            255,
+            255,
+          ],
+        },
+
+        alternateRowStyles: {
+          fillColor: [
+            250,
+            252,
+            254,
+          ],
+        },
+
+        columnStyles: {
+          0: {
+            cellWidth: 47,
+            fontStyle: "bold",
+          },
+          1: {
+            cellWidth: 34,
+          },
+          2: {
+            cellWidth: 34,
+          },
+          3: {
+            cellWidth: 25,
+          },
+          4: {
+            cellWidth: 34,
+          },
         },
       })
 
@@ -446,103 +661,296 @@ export default function ReportsPage() {
               finalY: number
             }
           }
-        ).lastAutoTable?.finalY ??
-        120
+        ).lastAutoTable
+          ?.finalY ??
+        currentY + 40
 
-      let currentY =
-        tableEndY + 10
+      currentY =
+        tableEndY + 8
 
-      // Prevent summary from being clipped
-      if (currentY > 240) {
-        pdf.addPage()
-        currentY = 20
-      }
+      // -----------------------------
+      // Summary cards
+      // -----------------------------
 
-      // Summary
-      pdf.setFont(
-        "helvetica",
-        "bold"
-      )
-
-      pdf.setFontSize(11)
-
-      pdf.text(
-        "Performance Summary",
-        14,
+      currentY = ensureSpace(
+        32,
         currentY
       )
 
-      currentY += 8
+      const summaryGap = 4
 
-      pdf.setFont(
-        "helvetica",
-        "normal"
-      )
+      const summaryCardWidth =
+        (contentWidth -
+          summaryGap * 2) /
+        3
 
-      pdf.setFontSize(10)
+      const summaryCardHeight =
+        24
 
       const average =
-        report.summary.average === null
+        report.summary.average ===
+        null
           ? "-"
           : `${report.summary.average.toFixed(
               1
             )}%`
 
-      pdf.text(
-        `Average: ${average}`,
-        14,
-        currentY
+      const summaries = [
+        {
+          label: "Average",
+          value: average,
+        },
+        {
+          label:
+            "Overall Grade",
+          value:
+            report.summary
+              .overallGrade ?? "-",
+        },
+        {
+          label: "Status",
+          value:
+            report.summary.status,
+        },
+      ]
+
+      summaries.forEach(
+        (item, index) => {
+          const x =
+            marginX +
+            index *
+              (summaryCardWidth +
+                summaryGap)
+
+          drawRoundedCard(
+            x,
+            currentY,
+            summaryCardWidth,
+            summaryCardHeight,
+            [250, 252, 254]
+          )
+
+          pdf.setFont(
+            "helvetica",
+            "normal"
+          )
+
+          pdf.setFontSize(9)
+
+          pdf.setTextColor(
+            100,
+            116,
+            139
+          )
+
+          pdf.text(
+            item.label,
+            x +
+              summaryCardWidth /
+                2,
+            currentY + 8,
+            {
+              align: "center",
+            }
+          )
+
+          pdf.setFont(
+            "helvetica",
+            "bold"
+          )
+
+          pdf.setFontSize(15)
+
+          pdf.setTextColor(
+            15,
+            23,
+            42
+          )
+
+          pdf.text(
+            String(item.value),
+            x +
+              summaryCardWidth /
+                2,
+            currentY + 17,
+            {
+              align: "center",
+            }
+          )
+        }
       )
 
-      pdf.text(
-        `Overall Grade: ${
+      currentY +=
+        summaryCardHeight + 8
+
+      // -----------------------------
+      // Teacher remarks card
+      // -----------------------------
+
+      const remarkLines =
+        pdf.splitTextToSize(
           report.summary
-            .overallGrade ?? "-"
-        }`,
-        75,
+            .teacherRemark,
+          contentWidth - 12
+        )
+
+      const remarkHeight =
+        Math.max(
+          24,
+          17 +
+            remarkLines.length * 4
+        )
+
+      currentY = ensureSpace(
+        remarkHeight + 8,
         currentY
       )
 
-      pdf.text(
-        `Status: ${report.summary.status}`,
-        145,
-        currentY
+      drawRoundedCard(
+        marginX,
+        currentY,
+        contentWidth,
+        remarkHeight,
+        [250, 252, 254]
       )
 
-      currentY += 12
-
-      // Teacher remarks
       pdf.setFont(
         "helvetica",
         "bold"
       )
 
-      pdf.text(
-        "Teacher Remarks",
-        14,
-        currentY
+      pdf.setFontSize(9)
+
+      pdf.setTextColor(
+        15,
+        23,
+        42
       )
 
-      currentY += 6
+      pdf.text(
+        "Teacher Remarks",
+        marginX + 5,
+        currentY + 8
+      )
 
       pdf.setFont(
         "helvetica",
         "normal"
       )
 
-      const remarkLines =
-        pdf.splitTextToSize(
-          report.summary.teacherRemark,
-          pageWidth - 28
-        )
+      pdf.setFontSize(9)
+
+      pdf.setTextColor(
+        71,
+        85,
+        105
+      )
 
       pdf.text(
         remarkLines,
-        14,
-        currentY
+        marginX + 5,
+        currentY + 15
       )
 
-      // Footer
+      currentY +=
+        remarkHeight
+
+      // -----------------------------
+      // Signature area
+      // -----------------------------
+
+      // Signatures must appear on
+      // the final page with enough
+      // blank space for handwriting.
+      if (currentY > 230) {
+        pdf.addPage()
+      }
+
+      const signatureY =
+        pageHeight - 30
+
+      const signatureWidth = 62
+
+      const leftSignatureX =
+        marginX
+
+      const rightSignatureX =
+        pageWidth -
+        marginX -
+        signatureWidth
+
+      pdf.setDrawColor(
+        100,
+        116,
+        139
+      )
+
+      pdf.setLineWidth(0.3)
+
+      // Dotted appearance
+      pdf.setLineDashPattern(
+        [1, 1.5],
+        0
+      )
+
+      pdf.line(
+        leftSignatureX,
+        signatureY,
+        leftSignatureX +
+          signatureWidth,
+        signatureY
+      )
+
+      pdf.line(
+        rightSignatureX,
+        signatureY,
+        rightSignatureX +
+          signatureWidth,
+        signatureY
+      )
+
+      pdf.setLineDashPattern(
+        [],
+        0
+      )
+
+      pdf.setFont(
+        "helvetica",
+        "normal"
+      )
+
+      pdf.setFontSize(8.5)
+
+      pdf.setTextColor(
+        71,
+        85,
+        105
+      )
+
+      pdf.text(
+        "Class Teacher's Signature",
+        leftSignatureX +
+          signatureWidth / 2,
+        signatureY + 5,
+        {
+          align: "center",
+        }
+      )
+
+      pdf.text(
+        "Parent/Guardian's Signature",
+        rightSignatureX +
+          signatureWidth / 2,
+        signatureY + 5,
+        {
+          align: "center",
+        }
+      )
+
+      // -----------------------------
+      // Footer / page numbers
+      // -----------------------------
+
       const totalPages =
         pdf.getNumberOfPages()
 
@@ -553,13 +961,21 @@ export default function ReportsPage() {
       ) {
         pdf.setPage(page)
 
-        const pageHeight =
-          pdf.internal.pageSize.getHeight()
+        pdf.setFont(
+          "helvetica",
+          "normal"
+        )
 
-        pdf.setFontSize(8)
+        pdf.setFontSize(7.5)
+
+        pdf.setTextColor(
+          148,
+          163,
+          184
+        )
 
         pdf.text(
-          `Generated by EduInsight | Page ${page} of ${totalPages}`,
+          `Generated by EduInsight • Page ${page} of ${totalPages}`,
           pageWidth / 2,
           pageHeight - 8,
           {
@@ -568,13 +984,20 @@ export default function ReportsPage() {
         )
       }
 
+      // -----------------------------
+      // Filename
+      // -----------------------------
+
       const safeStudentName =
         report.student.name
           .replace(
             /[^a-zA-Z0-9]+/g,
             "_"
           )
-          .replace(/^_+|_+$/g, "")
+          .replace(
+            /^_+|_+$/g,
+            ""
+          )
 
       const safeExamName =
         report.examination.name
@@ -582,10 +1005,30 @@ export default function ReportsPage() {
             /[^a-zA-Z0-9]+/g,
             "_"
           )
-          .replace(/^_+|_+$/g, "")
+          .replace(
+            /^_+|_+$/g,
+            ""
+          )
 
-      pdf.save(
-        `${safeStudentName}_${safeExamName}_Report.pdf`
+      return {
+        pdf,
+        filename:
+          `${safeStudentName}_${safeExamName}_Report.pdf`,
+      }
+  }
+
+  async function handleExportPdf() {
+    try {
+      setExportingPdf(true)
+      setError("")
+
+      const result =
+        buildReportPdf()
+
+      if (!result) return
+
+      result.pdf.save(
+        result.filename
       )
     } catch (error) {
       console.error(
@@ -598,6 +1041,75 @@ export default function ReportsPage() {
       )
     } finally {
       setExportingPdf(false)
+    }
+  }
+
+  async function handlePrintPdf() {
+    try {
+      setPrintingPdf(true)
+      setError("")
+
+      const result =
+        buildReportPdf()
+
+      if (!result) return
+
+      const blob =
+        result.pdf.output("blob")
+
+      const blobUrl =
+        URL.createObjectURL(blob)
+
+      const iframe =
+        document.createElement(
+          "iframe"
+        )
+
+      iframe.style.position =
+        "fixed"
+
+      iframe.style.right = "0"
+      iframe.style.bottom = "0"
+      iframe.style.width = "0"
+      iframe.style.height = "0"
+      iframe.style.border = "0"
+
+      iframe.src = blobUrl
+
+      document.body.appendChild(
+        iframe
+      )
+
+      iframe.onload = () => {
+        window.setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus()
+            iframe.contentWindow?.print()
+          } finally {
+            window.setTimeout(
+              () => {
+                iframe.remove()
+
+                URL.revokeObjectURL(
+                  blobUrl
+                )
+              },
+              60000
+            )
+          }
+        }, 500)
+      }
+    } catch (error) {
+      console.error(
+        "PDF print error:",
+        error
+      )
+
+      setError(
+        "Unable to prepare the report for printing."
+      )
+    } finally {
+      setPrintingPdf(false)
     }
   }
   
@@ -958,18 +1470,30 @@ export default function ReportsPage() {
             <Button
               variant="outline"
               className="gap-2"
-              onClick={() =>
-                window.print()
+              onClick={handlePrintPdf}
+              disabled={
+                printingPdf ||
+                exportingPdf
               }
             >
-              <Printer className="size-4" />
-              Print
+              {printingPdf ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Printer className="size-4" />
+              )}
+
+              {printingPdf
+                ? "Preparing..."
+                : "Print"}
             </Button>
 
             <Button
               className="gap-2"
               onClick={handleExportPdf}
-              disabled={exportingPdf}
+              disabled={
+                exportingPdf ||
+                printingPdf
+              }
             >
               {exportingPdf ? (
                 <Loader2 className="size-4 animate-spin" />

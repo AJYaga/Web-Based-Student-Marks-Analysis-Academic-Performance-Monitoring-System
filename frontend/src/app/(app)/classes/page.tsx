@@ -37,6 +37,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+import {
+  useSuccessDialog,
+} from "@/components/success-dialog-provider"
+
+import {
+  HighlightMatch,
+} from "@/components/highlight-match"
+
 export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassRecord[]>([])
   const [search, setSearch] = useState("")
@@ -56,7 +64,9 @@ export default function ClassesPage() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
+  const {
+    showSuccess,
+  } = useSuccessDialog()
 
   useEffect(() => {
     loadClasses()
@@ -123,7 +133,6 @@ export default function ClassesPage() {
     try {
       setSaving(true)
       setError("")
-      setSuccess("")
 
       if (editingId) {
         await updateClass(editingId, {
@@ -132,7 +141,7 @@ export default function ClassesPage() {
           academicYear,
         })
 
-        setSuccess("Class updated successfully.")
+        showSuccess("Class updated successfully.")
       } else {
         await createClass({
           name,
@@ -140,7 +149,7 @@ export default function ClassesPage() {
           academicYear,
         })
 
-        setSuccess("Class created successfully.")
+        showSuccess("Class created successfully.")
       }
 
       await loadClasses()
@@ -165,7 +174,6 @@ export default function ClassesPage() {
     setYear(String(item.academicYear))
     setShowForm(true)
     setError("")
-    setSuccess("")
   }
 
   async function confirmDeleteClass() {
@@ -176,7 +184,6 @@ export default function ClassesPage() {
     try {
       setDeleting(true)
       setError("")
-      setSuccess("")
 
       await deleteClassRequest(deleteId)
 
@@ -184,7 +191,7 @@ export default function ClassesPage() {
         current.filter((item) => item.id !== deleteId)
       )
 
-      setSuccess("Class deleted successfully.")
+      showSuccess("Class deleted successfully.")
       setDeleteId(null)
     } catch (error) {
       setDeleteId(null)
@@ -220,7 +227,6 @@ export default function ClassesPage() {
           className="gap-2"
           onClick={() => {
             resetForm()
-            setSuccess("")
             setShowForm(true)
           }}
         >
@@ -235,12 +241,6 @@ export default function ClassesPage() {
           className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="rounded-xl border border-secondary bg-secondary/40 px-4 py-3 text-sm font-medium">
-          {success}
         </div>
       )}
 
@@ -389,15 +389,24 @@ export default function ClassesPage() {
                       className="hover:bg-muted/30"
                     >
                       <td className="px-5 py-4 font-medium">
-                        {item.name}
+                        <HighlightMatch
+                          text={item.name}
+                          query={search}
+                        />
                       </td>
 
                       <td className="px-5 py-4">
-                        {item.level}
+                        <HighlightMatch
+                          text={item.level}
+                          query={search}
+                        />
                       </td>
 
                       <td className="px-5 py-4">
-                        {item.academicYear}
+                        <HighlightMatch
+                          text={String(item.academicYear)}
+                          query={search}
+                        />
                       </td>
 
                       <td className="px-5 py-4">

@@ -41,6 +41,10 @@ import {
   notifyTeacherProfileUpdated,
 } from "@/services/auth"
 
+import {
+  useSuccessDialog,
+} from "@/components/success-dialog-provider"
+
 export default function SettingsPage() {
   const { theme, setTheme } =
     useTheme()
@@ -92,8 +96,9 @@ export default function SettingsPage() {
   const [error, setError] =
     useState("")
 
-  const [success, setSuccess] =
-    useState("")
+  const {
+    showSuccess,
+  } = useSuccessDialog()
   
   const [
     rememberMe,
@@ -165,7 +170,6 @@ export default function SettingsPage() {
     try {
       setSavingProfile(true)
       setError("")
-      setSuccess("")
 
       const response =
         await updateProfile({
@@ -185,7 +189,7 @@ export default function SettingsPage() {
         response.teacher
       )
 
-      setSuccess(
+      showSuccess(
         "Profile updated successfully."
       )
     } catch (error) {
@@ -208,7 +212,6 @@ export default function SettingsPage() {
       )
 
       setError("")
-      setSuccess("")
 
       const response =
         await updateSessionPreference(
@@ -219,9 +222,6 @@ export default function SettingsPage() {
         response.rememberMe
       )
 
-      setSuccess(
-        response.message
-      )
     } catch (error) {
       setError(
         error instanceof Error
@@ -269,7 +269,6 @@ export default function SettingsPage() {
     try {
       setChangingPassword(true)
       setError("")
-      setSuccess("")
 
       await changePassword({
         currentPassword,
@@ -280,7 +279,7 @@ export default function SettingsPage() {
       setNewPassword("")
       setConfirmPassword("")
 
-      setSuccess(
+      showSuccess(
         "Password changed successfully."
       )
     } catch (error) {
@@ -326,12 +325,6 @@ export default function SettingsPage() {
           className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="rounded-xl border border-secondary bg-secondary/40 px-4 py-3 text-sm font-medium">
-          {success}
         </div>
       )}
 

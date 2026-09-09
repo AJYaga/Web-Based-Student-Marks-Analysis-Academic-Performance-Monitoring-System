@@ -48,7 +48,7 @@ export async function getSubjects(
         teacherId,
       },
       orderBy: {
-        name: "asc",
+        code: "asc",
       },
     })
 

@@ -70,7 +70,7 @@ export async function getStudents(
         },
       },
       orderBy: {
-        name: "asc",
+        registrationNo: "asc",
       },
     })
 
@@ -89,7 +89,7 @@ export async function getStudents(
           average,
           needsAttention:
             average !== null &&
-            average < 55 &&
+            average < 40 &&
             student.status === "ACTIVE",
         }
       })
@@ -313,7 +313,7 @@ export async function updateStudent(
         average,
         needsAttention:
           average !== null &&
-          average < 55 &&
+          average < 40 &&
           student.status === "ACTIVE",
       },
     })
